@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 
-import httpx
+import httpx2
 import openai
 
 from app.llm.base import ChatMessage, LLMError, LLMResult, LLMTimeoutError
@@ -21,7 +21,7 @@ class OpenAIChatClient:
         max_retries: int,
         temperature: float,
         max_output_tokens: int,
-        http_client: httpx.AsyncClient | None = None,
+        http_client: httpx2.AsyncClient | None = None,
     ) -> None:
         self._model = model
         self._temperature = temperature

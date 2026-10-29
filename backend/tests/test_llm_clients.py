@@ -1,6 +1,6 @@
 import json
 
-import httpx
+import httpx2 as httpx  # the HTTP library openai>=3 is built on
 import pytest
 
 from app.core.config import Settings
