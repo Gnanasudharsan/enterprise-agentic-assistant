@@ -27,6 +27,8 @@ services:
       # Inside the compose network the database is reachable as "db".
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
+      # Forward the host's key (if any); with LLM_PROVIDER=auto it enables the real model.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     ports:
       - "8000:8000"
     depends_on:
