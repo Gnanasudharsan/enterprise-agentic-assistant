@@ -36,3 +36,6 @@ datasets/**/raw_uploads/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# --- Local tooling ---
+.claude/
