@@ -9,6 +9,8 @@ export interface Message {
   content: string;
   status?: "streaming" | "done" | "error" | "stopped";
   error?: string;
+  /** Whether this answer was asked with company documents on (assistant messages). */
+  kb?: boolean;
   retrieval?: RetrievalStatus;
   sources?: Source[];
   citations?: number[];

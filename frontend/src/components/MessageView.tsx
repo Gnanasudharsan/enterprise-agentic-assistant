@@ -5,13 +5,14 @@ import remarkGfm from "remark-gfm";
 import type { Source } from "../api";
 import type { Message } from "../storage";
 import { CheckIcon, CopyIcon, LogoMark, RetryIcon } from "./Icons";
-import { RetrievalBadge, SourceList } from "./SourceList";
+import { CitationChip, ResearchSteps, SourceStrip } from "./Research";
 
 interface Props {
   message: Message;
   isLast: boolean;
   onRetry: () => void;
   onOpenSource: (source: Source) => void;
+  onCopied: () => void;
 }
 
 /** Turn [S1] markers into links that the Markdown renderer maps to citation chips. */
@@ -24,7 +25,7 @@ function plainText(text: string): string {
   return text.replace(/\[S(\d+)\]/g, "[$1]");
 }
 
-function CopyButton({ text }: { text: string }) {
+function CopyButton({ text, onCopied }: { text: string; onCopied: () => void }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -36,6 +37,7 @@ function CopyButton({ text }: { text: string }) {
         try {
           await navigator.clipboard.writeText(text);
           setCopied(true);
+          onCopied();
           setTimeout(() => setCopied(false), 1500);
         } catch {
           // Clipboard blocked; nothing useful to do.
@@ -47,7 +49,7 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-export function MessageView({ message, isLast, onRetry, onOpenSource }: Props) {
+export function MessageView({ message, isLast, onRetry, onOpenSource, onCopied }: Props) {
   if (message.role === "user") {
     return (
       <div className="msg msg-user">
@@ -57,24 +59,24 @@ export function MessageView({ message, isLast, onRetry, onOpenSource }: Props) {
   }
 
   const streaming = message.status === "streaming";
-  const waiting = streaming && message.content === "";
   const meta = message.meta;
   const sources = message.sources ?? [];
 
   return (
     <div className="msg msg-assistant">
       <div className="avatar" aria-hidden="true">
-        <LogoMark width={16} height={16} />
+        <LogoMark width={15} height={15} />
       </div>
       <div className="msg-body">
-        <RetrievalBadge retrieval={message.retrieval} count={sources.length} />
-        {waiting ? (
-          <div className="thinking" aria-label="Thinking">
-            <span />
-            <span />
-            <span />
-          </div>
-        ) : (
+        <ResearchSteps message={message} />
+        <SourceStrip
+          sources={sources}
+          citations={message.citations ?? []}
+          settled={message.status === "done"}
+          onOpen={onOpenSource}
+        />
+
+        {message.content && (
           <div className={`markdown ${streaming ? "is-streaming" : ""}`}>
             <Markdown
               remarkPlugins={[remarkGfm]}
@@ -82,16 +84,12 @@ export function MessageView({ message, isLast, onRetry, onOpenSource }: Props) {
                 a: ({ href, children, ...props }) => {
                   if (href?.startsWith("#cite-")) {
                     const n = Number(href.slice(6));
-                    const source = sources.find((s) => s.index === n);
                     return (
-                      <button
-                        type="button"
-                        className="cite"
-                        title={source ? `${source.doc_key} · ${source.section}` : `Source ${n}`}
-                        onClick={() => source && onOpenSource(source)}
-                      >
-                        {n}
-                      </button>
+                      <CitationChip
+                        n={n}
+                        source={sources.find((s) => s.index === n)}
+                        onOpen={onOpenSource}
+                      />
                     );
                   }
                   return (
@@ -119,17 +117,9 @@ export function MessageView({ message, isLast, onRetry, onOpenSource }: Props) {
         )}
         {message.status === "stopped" && <div className="msg-note">Generation stopped.</div>}
 
-        <SourceList
-          retrieval={message.retrieval}
-          sources={sources}
-          citations={message.citations ?? []}
-          streaming={streaming}
-          onOpen={onOpenSource}
-        />
-
         {!streaming && message.content && (
           <div className="msg-toolbar">
-            <CopyButton text={plainText(message.content)} />
+            <CopyButton text={plainText(message.content)} onCopied={onCopied} />
             {isLast && (
               <button
                 type="button"
@@ -143,9 +133,8 @@ export function MessageView({ message, isLast, onRetry, onOpenSource }: Props) {
             )}
             {meta && (
               <span className="msg-meta" title={`Run ${meta.run_id}`}>
-                {meta.model} · {(meta.latency_ms / 1000).toFixed(1)}s
-                {meta.usage.completion_tokens != null &&
-                  ` · ${meta.usage.prompt_tokens ?? "?"} → ${meta.usage.completion_tokens} tokens`}
+                {meta.model.replace(/-\d{4}-\d{2}-\d{2}$/, "")} · {meta.usage.prompt_tokens ?? "?"}→
+                {meta.usage.completion_tokens ?? "?"} tok
               </span>
             )}
           </div>

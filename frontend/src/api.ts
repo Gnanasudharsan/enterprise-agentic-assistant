@@ -61,6 +61,8 @@ export interface AssistantInfo {
   provider: string;
   model: string;
   demo_mode: boolean;
+  embedding_model: string;
+  user_groups: string[];
 }
 
 export interface ReadyResponse {

@@ -1,112 +1,140 @@
-import { type KeyboardEvent, useEffect, useRef } from "react";
+import { type KeyboardEvent, type RefObject, useEffect } from "react";
 
-import { BookIcon, SendIcon, StopIcon } from "./Icons";
+import { BookIcon, GlobeIcon, PaperclipIcon, SendIcon, StopIcon } from "./Icons";
+import { MOD_KEY } from "./Sidebar";
 
 interface Props {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
   onStop: () => void;
+  onAttach: () => void;
   busy: boolean;
   disabled?: boolean;
   useKnowledgeBase: boolean;
-  onToggleKnowledgeBase: () => void;
+  onKnowledgeBaseChange: (on: boolean) => void;
+  model?: string;
+  variant: "hero" | "dock";
+  inputRef: RefObject<HTMLTextAreaElement | null>;
 }
 
 const MAX_CHARS = 8000;
 
-export function Composer({
-  value,
-  onChange,
-  onSubmit,
-  onStop,
-  busy,
-  disabled,
-  useKnowledgeBase,
-  onToggleKnowledgeBase,
-}: Props) {
-  const ref = useRef<HTMLTextAreaElement>(null);
+export function Composer(props: Props) {
+  const { value, busy, disabled, useKnowledgeBase, variant, inputRef } = props;
 
-  // Grow with content up to a cap, then scroll. Modern browsers do this in CSS
-  // (field-sizing: content); this is the fallback for the rest.
+  // Refocus after each answer, but not on touch devices, where focusing opens the
+  // on-screen keyboard and scrolls the page.
   useEffect(() => {
-    const el = ref.current;
-    if (!el || CSS.supports("field-sizing", "content")) return;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
-  }, [value]);
-
-  useEffect(() => {
-    if (!busy) ref.current?.focus();
-  }, [busy]);
+    if (!busy && window.matchMedia("(pointer: fine)").matches) inputRef.current?.focus();
+  }, [busy, inputRef]);
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
-      if (!busy) onSubmit();
+      if (!busy) props.onSubmit();
     }
   }
 
   const nearLimit = value.length > MAX_CHARS * 0.9;
 
-  return (
-    <div className="composer-wrap">
-      <form
-        className="composer"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!busy) onSubmit();
-        }}
-      >
-        <textarea
-          ref={ref}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder={
-            useKnowledgeBase ? "Ask about company policies, incidents, processes…" : "Ask anything…"
-          }
-          rows={1}
-          maxLength={MAX_CHARS}
-          aria-label="Message"
-          disabled={disabled}
-        />
-        <button
-          type="button"
-          className={`kb-toggle ${useKnowledgeBase ? "on" : ""}`}
-          onClick={onToggleKnowledgeBase}
-          aria-pressed={useKnowledgeBase}
-          title={useKnowledgeBase ? "Answers use company documents" : "Company documents are off"}
-        >
-          <BookIcon width={15} height={15} />
-          <span>Company docs</span>
-        </button>
-        {busy ? (
-          <button type="button" className="send-button stop" onClick={onStop} aria-label="Stop">
-            <StopIcon />
-          </button>
-        ) : (
+  const box = (
+    <form
+      className={`composer ${variant === "hero" ? "hero-variant" : ""}`}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!busy) props.onSubmit();
+      }}
+    >
+      <textarea
+        ref={inputRef}
+        value={value}
+        onChange={(e) => props.onChange(e.target.value)}
+        onKeyDown={onKeyDown}
+        placeholder={
+          useKnowledgeBase
+            ? "Ask about Helio's policies, incidents, decisions…"
+            : "Ask anything (company documents are off)…"
+        }
+        rows={1}
+        maxLength={MAX_CHARS}
+        aria-label="Message"
+        disabled={disabled}
+      />
+      <div className="composer-bar">
+        <div className="composer-tools">
           <button
-            type="submit"
-            className="send-button"
-            disabled={disabled || !value.trim()}
-            aria-label="Send"
+            type="button"
+            className="icon-button"
+            onClick={props.onAttach}
+            title="Add a document to the knowledge base"
+            aria-label="Add a document to the knowledge base"
           >
-            <SendIcon />
+            <PaperclipIcon width={17} height={17} />
           </button>
-        )}
-      </form>
+          <div className="mode-switch" role="radiogroup" aria-label="Answer source">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={useKnowledgeBase}
+              className={`mode-option ${useKnowledgeBase ? "active" : ""}`}
+              onClick={() => props.onKnowledgeBaseChange(true)}
+              title="Ground answers in company documents, with citations"
+            >
+              <BookIcon width={14} height={14} />
+              <span>Company docs</span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={!useKnowledgeBase}
+              className={`mode-option ${!useKnowledgeBase ? "active" : ""}`}
+              onClick={() => props.onKnowledgeBaseChange(false)}
+              title="Answer from the model's general knowledge only"
+            >
+              <GlobeIcon width={14} height={14} />
+              <span>General</span>
+            </button>
+          </div>
+        </div>
+        <div className="composer-right">
+          {nearLimit ? (
+            <span className="char-count">
+              {value.length.toLocaleString()} / {MAX_CHARS.toLocaleString()}
+            </span>
+          ) : (
+            props.model && <span className="model-chip">{props.model}</span>
+          )}
+          {busy ? (
+            <button type="button" className="send-button stop" onClick={props.onStop} aria-label="Stop">
+              <StopIcon width={16} height={16} />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              className="send-button"
+              disabled={disabled || !value.trim()}
+              aria-label="Send"
+            >
+              <SendIcon width={17} height={17} />
+            </button>
+          )}
+        </div>
+      </div>
+    </form>
+  );
+
+  if (variant === "hero") return box;
+  return (
+    <div className="composer-dock">
+      {box}
       <div className="composer-foot">
         <span>
-          <kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line
+          <kbd>↵</kbd> send · <kbd>⇧</kbd>
+          <kbd>↵</kbd> new line · <kbd>{MOD_KEY}</kbd>
+          <kbd>K</kbd> commands
         </span>
-        {nearLimit ? (
-          <span className="char-count">
-            {value.length.toLocaleString()} / {MAX_CHARS.toLocaleString()}
-          </span>
-        ) : (
-          <span>AI answers can be wrong. Verify important information.</span>
-        )}
+        <span>Answers can be wrong. Check the cited sources.</span>
       </div>
     </div>
   );
