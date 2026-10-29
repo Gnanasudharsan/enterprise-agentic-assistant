@@ -1,20 +1,33 @@
 """FastAPI application factory."""
 
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
-from app.api.routes import health
+from app.api.routes import chat, health
 from app.core.config import Settings, get_settings
+from app.llm.factory import build_llm_client
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     logging.basicConfig(level=settings.log_level.upper())
 
-    app = FastAPI(title=settings.app_name, version=__version__)
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        # Tests may pre-populate app.state.llm_client with a stub.
+        if getattr(app.state, "llm_client", None) is None:
+            app.state.llm_client = build_llm_client(settings)
+        try:
+            yield
+        finally:
+            await app.state.llm_client.aclose()
+
+    app = FastAPI(title=settings.app_name, version=__version__, lifespan=lifespan)
     app.state.settings = settings
 
     app.add_middleware(
@@ -25,6 +38,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
 
     app.include_router(health.router)
+    app.include_router(chat.router)
     return app
 
 
