@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
-from app.api.routes import chat, health, search
+from app.api.routes import chat, documents, health, search
 from app.core.config import Settings, get_settings
 from app.db.session import build_engine, build_sessionmaker
 from app.llm.factory import build_llm_client
@@ -49,6 +49,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router)
     app.include_router(chat.router)
     app.include_router(search.router)
+    app.include_router(documents.router)
     return app
 
 
