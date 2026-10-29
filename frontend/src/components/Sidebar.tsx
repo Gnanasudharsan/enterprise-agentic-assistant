@@ -1,5 +1,14 @@
 import type { Conversation } from "../storage";
-import { ChartIcon, ChatIcon, DocIcon, LogoMark, PlusIcon, ShieldIcon, TrashIcon } from "./Icons";
+import {
+  BookIcon,
+  ChartIcon,
+  ChatIcon,
+  LogoMark,
+  PlusIcon,
+  ShieldIcon,
+  SparkIcon,
+  TrashIcon,
+} from "./Icons";
 
 interface Props {
   conversations: Conversation[];
@@ -8,15 +17,24 @@ interface Props {
   onSelect: (id: string) => void;
   onNew: () => void;
   onDelete: (id: string) => void;
+  onOpenKnowledgeBase: () => void;
 }
 
 const ROADMAP = [
-  { icon: DocIcon, label: "Document search with citations", phase: "Phase 2" },
   { icon: ChartIcon, label: "SQL analysis of business data", phase: "Phase 3" },
   { icon: ShieldIcon, label: "Actions with human approval", phase: "Phase 4" },
+  { icon: SparkIcon, label: "Quality & safety evaluations", phase: "Phase 5" },
 ];
 
-export function Sidebar({ conversations, activeId, open, onSelect, onNew, onDelete }: Props) {
+export function Sidebar({
+  conversations,
+  activeId,
+  open,
+  onSelect,
+  onNew,
+  onDelete,
+  onOpenKnowledgeBase,
+}: Props) {
   return (
     <aside className={`sidebar ${open ? "sidebar-open" : ""}`}>
       <div className="brand">
@@ -31,6 +49,9 @@ export function Sidebar({ conversations, activeId, open, onSelect, onNew, onDele
 
       <button type="button" className="new-chat" onClick={onNew}>
         <PlusIcon /> New chat
+      </button>
+      <button type="button" className="nav-item" onClick={onOpenKnowledgeBase}>
+        <BookIcon width={16} height={16} /> Knowledge base
       </button>
 
       <nav className="history" aria-label="Recent conversations">

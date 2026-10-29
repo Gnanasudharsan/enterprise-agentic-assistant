@@ -1,6 +1,6 @@
 import { type KeyboardEvent, useEffect, useRef } from "react";
 
-import { SendIcon, StopIcon } from "./Icons";
+import { BookIcon, SendIcon, StopIcon } from "./Icons";
 
 interface Props {
   value: string;
@@ -9,11 +9,22 @@ interface Props {
   onStop: () => void;
   busy: boolean;
   disabled?: boolean;
+  useKnowledgeBase: boolean;
+  onToggleKnowledgeBase: () => void;
 }
 
 const MAX_CHARS = 8000;
 
-export function Composer({ value, onChange, onSubmit, onStop, busy, disabled }: Props) {
+export function Composer({
+  value,
+  onChange,
+  onSubmit,
+  onStop,
+  busy,
+  disabled,
+  useKnowledgeBase,
+  onToggleKnowledgeBase,
+}: Props) {
   const ref = useRef<HTMLTextAreaElement>(null);
 
   // Grow with content up to a cap, then scroll. Modern browsers do this in CSS
@@ -52,12 +63,24 @@ export function Composer({ value, onChange, onSubmit, onStop, busy, disabled }: 
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="Ask a business question…"
+          placeholder={
+            useKnowledgeBase ? "Ask about company policies, incidents, processes…" : "Ask anything…"
+          }
           rows={1}
           maxLength={MAX_CHARS}
           aria-label="Message"
           disabled={disabled}
         />
+        <button
+          type="button"
+          className={`kb-toggle ${useKnowledgeBase ? "on" : ""}`}
+          onClick={onToggleKnowledgeBase}
+          aria-pressed={useKnowledgeBase}
+          title={useKnowledgeBase ? "Answers use company documents" : "Company documents are off"}
+        >
+          <BookIcon width={15} height={15} />
+          <span>Company docs</span>
+        </button>
         {busy ? (
           <button type="button" className="send-button stop" onClick={onStop} aria-label="Stop">
             <StopIcon />

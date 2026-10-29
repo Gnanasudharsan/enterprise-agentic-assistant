@@ -2,13 +2,26 @@ import { useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import type { Source } from "../api";
 import type { Message } from "../storage";
 import { CheckIcon, CopyIcon, LogoMark, RetryIcon } from "./Icons";
+import { RetrievalBadge, SourceList } from "./SourceList";
 
 interface Props {
   message: Message;
   isLast: boolean;
   onRetry: () => void;
+  onOpenSource: (source: Source) => void;
+}
+
+/** Turn [S1] markers into links that the Markdown renderer maps to citation chips. */
+function linkCitations(text: string): string {
+  return text.replace(/\[S(\d+)\]/g, "[$1](#cite-$1)");
+}
+
+/** Copy-friendly text: citation markers become plain [1] references. */
+function plainText(text: string): string {
+  return text.replace(/\[S(\d+)\]/g, "[$1]");
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -34,7 +47,7 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-export function MessageView({ message, isLast, onRetry }: Props) {
+export function MessageView({ message, isLast, onRetry, onOpenSource }: Props) {
   if (message.role === "user") {
     return (
       <div className="msg msg-user">
@@ -46,6 +59,7 @@ export function MessageView({ message, isLast, onRetry }: Props) {
   const streaming = message.status === "streaming";
   const waiting = streaming && message.content === "";
   const meta = message.meta;
+  const sources = message.sources ?? [];
 
   return (
     <div className="msg msg-assistant">
@@ -53,6 +67,7 @@ export function MessageView({ message, isLast, onRetry }: Props) {
         <LogoMark width={16} height={16} />
       </div>
       <div className="msg-body">
+        <RetrievalBadge retrieval={message.retrieval} count={sources.length} />
         {waiting ? (
           <div className="thinking" aria-label="Thinking">
             <span />
@@ -64,10 +79,30 @@ export function MessageView({ message, isLast, onRetry }: Props) {
             <Markdown
               remarkPlugins={[remarkGfm]}
               components={{
-                a: (props) => <a {...props} target="_blank" rel="noreferrer" />,
+                a: ({ href, children, ...props }) => {
+                  if (href?.startsWith("#cite-")) {
+                    const n = Number(href.slice(6));
+                    const source = sources.find((s) => s.index === n);
+                    return (
+                      <button
+                        type="button"
+                        className="cite"
+                        title={source ? `${source.doc_key} · ${source.section}` : `Source ${n}`}
+                        onClick={() => source && onOpenSource(source)}
+                      >
+                        {n}
+                      </button>
+                    );
+                  }
+                  return (
+                    <a href={href} {...props} target="_blank" rel="noreferrer">
+                      {children}
+                    </a>
+                  );
+                },
               }}
             >
-              {message.content}
+              {linkCitations(message.content)}
             </Markdown>
           </div>
         )}
@@ -84,9 +119,17 @@ export function MessageView({ message, isLast, onRetry }: Props) {
         )}
         {message.status === "stopped" && <div className="msg-note">Generation stopped.</div>}
 
+        <SourceList
+          retrieval={message.retrieval}
+          sources={sources}
+          citations={message.citations ?? []}
+          streaming={streaming}
+          onOpen={onOpenSource}
+        />
+
         {!streaming && message.content && (
           <div className="msg-toolbar">
-            <CopyButton text={message.content} />
+            <CopyButton text={plainText(message.content)} />
             {isLast && (
               <button
                 type="button"
