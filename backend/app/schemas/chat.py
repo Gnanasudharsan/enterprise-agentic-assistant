@@ -71,3 +71,6 @@ class AssistantInfo(BaseModel):
     provider: str
     model: str
     demo_mode: bool
+    embedding_model: str
+    # The caller's access groups (what the knowledge base will show them).
+    user_groups: list[str]
