@@ -169,13 +169,20 @@ def http_error_for(exc: LLMError) -> tuple[int, str]:
 
 
 @router.get("/info", response_model=AssistantInfo)
-async def info(llm: Annotated[LLMClient, Depends(get_llm_client)]) -> AssistantInfo:
-    """Which model is serving answers. `demo_mode` means no real model is connected."""
+async def info(
+    llm: Annotated[LLMClient, Depends(get_llm_client)],
+    retriever: Annotated[Retriever, Depends(get_retriever)],
+    groups: Annotated[list[str], Depends(get_user_groups)],
+) -> AssistantInfo:
+    """Which models serve answers and retrieval, and the caller's access groups.
+    `demo_mode` means no real language model is connected."""
     return AssistantInfo(
         version=__version__,
         provider=llm.provider,
         model=llm.model,
         demo_mode=llm.provider == "fake",
+        embedding_model=retriever.embedder.model,
+        user_groups=groups,
     )
 
 
