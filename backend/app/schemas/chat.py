@@ -1,3 +1,5 @@
+import uuid
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -19,6 +21,7 @@ class Usage(BaseModel):
 
 
 class ChatResponse(BaseModel):
+    run_id: uuid.UUID
     answer: str
     provider: str
     model: str

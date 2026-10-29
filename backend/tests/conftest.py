@@ -3,8 +3,12 @@ from collections.abc import Sequence
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session
 
 from app.core.config import Settings
+from app.db.base import Base
+from app.db.models import ChatRun
 from app.llm.base import ChatMessage, LLMResult
 from app.main import create_app
 
@@ -33,9 +37,41 @@ class StubLLM:
 
 
 @pytest.fixture
-def settings() -> Settings:
+def db_path(tmp_path):
+    """A throwaway SQLite database with the schema created (unit tests only).
+
+    Postgres-specific behavior (pgvector, migrations) is covered by integration tests.
+    """
+    path = tmp_path / "test.db"
+    engine = create_engine(f"sqlite:///{path}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+    return path
+
+
+@pytest.fixture
+def settings(db_path) -> Settings:
     # _env_file=None keeps a developer's local .env from leaking into tests.
-    return Settings(_env_file=None, app_env="test", llm_provider="fake")
+    return Settings(
+        _env_file=None,
+        app_env="test",
+        llm_provider="fake",
+        database_url=f"sqlite+aiosqlite:///{db_path}",
+    )
+
+
+@pytest.fixture
+def chat_runs(db_path):
+    """Returns a function that reads all persisted chat runs."""
+
+    def _read() -> list[ChatRun]:
+        engine = create_engine(f"sqlite:///{db_path}")
+        with Session(engine) as session:
+            rows = list(session.scalars(select(ChatRun).order_by(ChatRun.created_at)))
+        engine.dispose()
+        return rows
+
+    return _read
 
 
 @pytest.fixture
