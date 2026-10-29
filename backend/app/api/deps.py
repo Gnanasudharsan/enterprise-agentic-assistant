@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.llm.base import LLMClient
+from app.rag.retrieval import Retriever
 
 
 def get_settings_dep(request: Request) -> Settings:
@@ -18,3 +19,12 @@ def get_llm_client(request: Request) -> LLMClient:
 async def get_db_session(request: Request) -> AsyncIterator[AsyncSession]:
     async with request.app.state.sessionmaker() as session:
         yield session
+
+
+def get_retriever(request: Request) -> Retriever:
+    return request.app.state.retriever
+
+
+def get_user_groups(request: Request) -> list[str]:
+    """The caller's access groups. Single demo identity until authentication lands."""
+    return request.app.state.settings.user_groups
