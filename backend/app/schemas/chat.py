@@ -17,6 +17,8 @@ class ChatRequest(BaseModel):
     # Earlier turns of this conversation, oldest first. Only the most recent
     # MAX_HISTORY_MESSAGES are sent to the model, to bound cost and latency.
     history: list[HistoryMessage] = Field(default_factory=list, max_length=200)
+    # Search the company knowledge base and ground the answer in what is found.
+    use_knowledge_base: bool = True
 
     @field_validator("prompt")
     @classmethod
@@ -32,6 +34,23 @@ class Usage(BaseModel):
     completion_tokens: int | None = None
 
 
+class Source(BaseModel):
+    """A retrieved passage shown to the model, numbered as cited in the answer ([S1]…)."""
+
+    index: int
+    chunk_id: uuid.UUID
+    doc_key: str
+    title: str
+    section: str
+    snippet: str
+    source_path: str
+    doc_type: str | None
+    score: float
+
+
+RetrievalStatus = Literal["used", "no_results", "disabled", "failed"]
+
+
 class ChatResponse(BaseModel):
     run_id: uuid.UUID
     answer: str
@@ -39,6 +58,12 @@ class ChatResponse(BaseModel):
     model: str
     latency_ms: int
     usage: Usage
+    retrieval: RetrievalStatus = "disabled"
+    sources: list[Source] = []
+    # Source indices the answer cites, validated against `sources`, in order of first use.
+    citations: list[int] = []
+    # Citation markers the model produced that pointed to no provided source (removed).
+    invalid_citations: int = 0
 
 
 class AssistantInfo(BaseModel):

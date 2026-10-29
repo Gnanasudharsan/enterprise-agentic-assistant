@@ -1,4 +1,5 @@
 import os
+import uuid
 from collections.abc import AsyncIterator, Sequence
 from pathlib import Path
 
@@ -16,6 +17,8 @@ from app.db.base import Base
 from app.db.models import ChatRun
 from app.llm.base import ChatMessage, LLMResult, StreamDelta
 from app.main import create_app
+from app.rag.embeddings import HashingEmbedder
+from app.rag.retrieval import RetrievedChunk
 
 
 class StubLLM:
@@ -50,6 +53,35 @@ class StubLLM:
 
     async def aclose(self) -> None:
         self.closed = True
+
+
+class StubRetriever:
+    """Returns canned chunks (or raises) and records the queries it receives."""
+
+    def __init__(self) -> None:
+        self.embedder = HashingEmbedder()
+        self.chunks: list[RetrievedChunk] = []
+        self.error: Exception | None = None
+        self.queries: list[tuple[str, list[str]]] = []
+
+    async def search(self, session, query, groups, **kwargs) -> list[RetrievedChunk]:
+        self.queries.append((query, list(groups)))
+        if self.error:
+            raise self.error
+        return self.chunks
+
+
+def make_chunk(doc_key: str, section: str, content: str) -> RetrievedChunk:
+    return RetrievedChunk(
+        chunk_id=uuid.uuid4(),
+        doc_key=doc_key,
+        title=doc_key,
+        section=section,
+        content=content,
+        source_path=f"{doc_key}.md",
+        doc_type="policy",
+        score=0.03,
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -104,9 +136,15 @@ def llm() -> StubLLM:
 
 
 @pytest.fixture
-def app(settings: Settings, llm: StubLLM) -> FastAPI:
+def retriever() -> StubRetriever:
+    return StubRetriever()
+
+
+@pytest.fixture
+def app(settings: Settings, llm: StubLLM, retriever: StubRetriever) -> FastAPI:
     app = create_app(settings)
     app.state.llm_client = llm
+    app.state.retriever = retriever
     return app
 
 
