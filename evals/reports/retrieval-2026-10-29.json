@@ -1,0 +1,1910 @@
+[
+  {
+    "name": "Keyword only (FTS)",
+    "embedder": "\u2014",
+    "mode": "keyword",
+    "rerank": false,
+    "hit_at_1": 0.7837837837837838,
+    "recall_at_5": 0.918918918918919,
+    "mrr_at_10": 0.8588588588588588,
+    "evidence_coverage_at_5": 0.918918918918919,
+    "leaks": 0,
+    "latency_p50_ms": 1.9560420041671023,
+    "latency_p95_ms": 2.86108299769694,
+    "recall_at_5_by_category": {
+      "cross_doc": 1.0,
+      "factual": 0.95,
+      "identifier": 1.0,
+      "paraphrase": 0.6666666666666666,
+      "restricted": 1.0
+    },
+    "questions": [
+      {
+        "id": "hr-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 5.694457999197766,
+        "leaked": []
+      },
+      {
+        "id": "hr-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.8967910000355914,
+        "leaked": []
+      },
+      {
+        "id": "hr-03",
+        "category": "paraphrase",
+        "first_relevant_rank": 9,
+        "coverage_at_k": 0.0,
+        "latency_ms": 1.9560420041671023,
+        "leaked": []
+      },
+      {
+        "id": "hr-04",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.9708749969140626,
+        "leaked": []
+      },
+      {
+        "id": "hr-05",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.8880830029956996,
+        "leaked": []
+      },
+      {
+        "id": "hr-06",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.6552089946344495,
+        "leaked": []
+      },
+      {
+        "id": "hr-07",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.86108299769694,
+        "leaked": []
+      },
+      {
+        "id": "hr-08",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 3.6514169987640344,
+        "leaked": []
+      },
+      {
+        "id": "hr-09",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.0557079988066107,
+        "leaked": []
+      },
+      {
+        "id": "fin-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.8805419967975467,
+        "leaked": []
+      },
+      {
+        "id": "fin-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.170457999454811,
+        "leaked": []
+      },
+      {
+        "id": "fin-03",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.1523339964915067,
+        "leaked": []
+      },
+      {
+        "id": "fin-04",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.7149999985122122,
+        "leaked": []
+      },
+      {
+        "id": "fin-05",
+        "category": "paraphrase",
+        "first_relevant_rank": 6,
+        "coverage_at_k": 0.0,
+        "latency_ms": 1.94500000361586,
+        "leaked": []
+      },
+      {
+        "id": "sec-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.1873750010854565,
+        "leaked": []
+      },
+      {
+        "id": "sec-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.4012920000823215,
+        "leaked": []
+      },
+      {
+        "id": "sec-03",
+        "category": "paraphrase",
+        "first_relevant_rank": 3,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.8073340033879504,
+        "leaked": []
+      },
+      {
+        "id": "sec-04",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.7232090031029657,
+        "leaked": []
+      },
+      {
+        "id": "sec-05",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.976165993255563,
+        "leaked": []
+      },
+      {
+        "id": "cs-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.236166998045519,
+        "leaked": []
+      },
+      {
+        "id": "cs-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.0264580016373657,
+        "leaked": []
+      },
+      {
+        "id": "cs-03",
+        "category": "factual",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.8026249963440932,
+        "leaked": []
+      },
+      {
+        "id": "inc-01",
+        "category": "identifier",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.811665999412071,
+        "leaked": []
+      },
+      {
+        "id": "inc-02",
+        "category": "identifier",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.268417003506329,
+        "leaked": []
+      },
+      {
+        "id": "inc-03",
+        "category": "identifier",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.414958001987543,
+        "leaked": []
+      },
+      {
+        "id": "inc-04",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.9281670029158704,
+        "leaked": []
+      },
+      {
+        "id": "adr-01",
+        "category": "identifier",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.0194169992464595,
+        "leaked": []
+      },
+      {
+        "id": "adr-02",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.0243749968358316,
+        "leaked": []
+      },
+      {
+        "id": "sup-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.01237500004936,
+        "leaked": []
+      },
+      {
+        "id": "sup-02",
+        "category": "factual",
+        "first_relevant_rank": 6,
+        "coverage_at_k": 0.0,
+        "latency_ms": 1.8806660009431653,
+        "leaked": []
+      },
+      {
+        "id": "prd-01",
+        "category": "factual",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.680792003753595,
+        "leaked": []
+      },
+      {
+        "id": "prd-02",
+        "category": "factual",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.03666600282304,
+        "leaked": []
+      },
+      {
+        "id": "x-01",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.02312500186963,
+        "leaked": []
+      },
+      {
+        "id": "x-02",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.0620829964173026,
+        "leaked": []
+      },
+      {
+        "id": "x-03",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.360542002657894,
+        "leaked": []
+      },
+      {
+        "id": "acl-01",
+        "category": "restricted",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.538042000902351,
+        "leaked": []
+      },
+      {
+        "id": "acl-02",
+        "category": "restricted",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.8262499943375587,
+        "leaked": []
+      }
+    ]
+  },
+  {
+    "name": "Vector only",
+    "embedder": "hashing-v1",
+    "mode": "vector",
+    "rerank": false,
+    "hit_at_1": 0.5945945945945946,
+    "recall_at_5": 0.8648648648648649,
+    "mrr_at_10": 0.7213105963105964,
+    "evidence_coverage_at_5": 0.8648648648648649,
+    "leaks": 0,
+    "latency_p50_ms": 1.7432079985155724,
+    "latency_p95_ms": 1.9839170054183342,
+    "recall_at_5_by_category": {
+      "cross_doc": 1.0,
+      "factual": 0.85,
+      "identifier": 1.0,
+      "paraphrase": 0.6666666666666666,
+      "restricted": 1.0
+    },
+    "questions": [
+      {
+        "id": "hr-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.9171659951098263,
+        "leaked": []
+      },
+      {
+        "id": "hr-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.860541000496596,
+        "leaked": []
+      },
+      {
+        "id": "hr-03",
+        "category": "paraphrase",
+        "first_relevant_rank": 7,
+        "coverage_at_k": 0.0,
+        "latency_ms": 1.7941249971045181,
+        "leaked": []
+      },
+      {
+        "id": "hr-04",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.8147079972550273,
+        "leaked": []
+      },
+      {
+        "id": "hr-05",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.7071660040528513,
+        "leaked": []
+      },
+      {
+        "id": "hr-06",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.9442909979261458,
+        "leaked": []
+      },
+      {
+        "id": "hr-07",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.7260409949813038,
+        "leaked": []
+      },
+      {
+        "id": "hr-08",
+        "category": "factual",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.748292001138907,
+        "leaked": []
+      },
+      {
+        "id": "hr-09",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.7665830018813722,
+        "leaked": []
+      },
+      {
+        "id": "fin-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.0040000017615966,
+        "leaked": []
+      },
+      {
+        "id": "fin-02",
+        "category": "factual",
+        "first_relevant_rank": 9,
+        "coverage_at_k": 0.0,
+        "latency_ms": 1.9839170054183342,
+        "leaked": []
+      },
+      {
+        "id": "fin-03",
+        "category": "paraphrase",
+        "first_relevant_rank": 4,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.7416670016245916,
+        "leaked": []
+      },
+      {
+        "id": "fin-04",
+        "category": "factual",
+        "first_relevant_rank": 8,
+        "coverage_at_k": 0.0,
+        "latency_ms": 2.0342080024420284,
+        "leaked": []
+      },
+      {
+        "id": "fin-05",
+        "category": "paraphrase",
+        "first_relevant_rank": 7,
+        "coverage_at_k": 0.0,
+        "latency_ms": 1.9752090011024848,
+        "leaked": []
+      },
+      {
+        "id": "sec-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.7814999955589883,
+        "leaked": []
+      },
+      {
+        "id": "sec-02",
+        "category": "factual",
+        "first_relevant_rank": 3,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.7210000005434267,
+        "leaked": []
+      },
+      {
+        "id": "sec-03",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.6913340004975908,
+        "leaked": []
+      },
+      {
+        "id": "sec-04",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.6667919990140945,
+        "leaked": []
+      },
+      {
+        "id": "sec-05",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.6741249928600155,
+        "leaked": []
+      },
+      {
+        "id": "cs-01",
+        "category": "factual",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.7372090005665086,
+        "leaked": []
+      },
+      {
+        "id": "cs-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.6323749950970523,
+        "leaked": []
+      },
+      {
+        "id": "cs-03",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.5987920050974935,
+        "leaked": []
+      },
+      {
+        "id": "inc-01",
+        "category": "identifier",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.7220829977304675,
+        "leaked": []
+      },
+      {
+        "id": "inc-02",
+        "category": "identifier",
+        "first_relevant_rank": 3,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.8173749995185062,
+        "leaked": []
+      },
+      {
+        "id": "inc-03",
+        "category": "identifier",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.7477500005043112,
+        "leaked": []
+      },
+      {
+        "id": "inc-04",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.6555420006625354,
+        "leaked": []
+      },
+      {
+        "id": "adr-01",
+        "category": "identifier",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.5627079992555082,
+        "leaked": []
+      },
+      {
+        "id": "adr-02",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.6104159949463792,
+        "leaked": []
+      },
+      {
+        "id": "sup-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.86266700620763,
+        "leaked": []
+      },
+      {
+        "id": "sup-02",
+        "category": "factual",
+        "first_relevant_rank": 6,
+        "coverage_at_k": 0.0,
+        "latency_ms": 1.7432079985155724,
+        "leaked": []
+      },
+      {
+        "id": "prd-01",
+        "category": "factual",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.741166997817345,
+        "leaked": []
+      },
+      {
+        "id": "prd-02",
+        "category": "factual",
+        "first_relevant_rank": 4,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.6317080007866025,
+        "leaked": []
+      },
+      {
+        "id": "x-01",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.8833330032066442,
+        "leaked": []
+      },
+      {
+        "id": "x-02",
+        "category": "cross_doc",
+        "first_relevant_rank": 3,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.8299160001333803,
+        "leaked": []
+      },
+      {
+        "id": "x-03",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.7222500027855858,
+        "leaked": []
+      },
+      {
+        "id": "acl-01",
+        "category": "restricted",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.711333003186155,
+        "leaked": []
+      },
+      {
+        "id": "acl-02",
+        "category": "restricted",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1.7853329991339706,
+        "leaked": []
+      }
+    ]
+  },
+  {
+    "name": "Hybrid (RRF)",
+    "embedder": "hashing-v1",
+    "mode": "hybrid",
+    "rerank": false,
+    "hit_at_1": 0.6486486486486487,
+    "recall_at_5": 0.9459459459459459,
+    "mrr_at_10": 0.7869369369369369,
+    "evidence_coverage_at_5": 0.9459459459459459,
+    "leaks": 0,
+    "latency_p50_ms": 2.7720000070985407,
+    "latency_p95_ms": 2.957583994430024,
+    "recall_at_5_by_category": {
+      "cross_doc": 1.0,
+      "factual": 0.95,
+      "identifier": 1.0,
+      "paraphrase": 0.8333333333333334,
+      "restricted": 1.0
+    },
+    "questions": [
+      {
+        "id": "hr-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.591624994238373,
+        "leaked": []
+      },
+      {
+        "id": "hr-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.717290997679811,
+        "leaked": []
+      },
+      {
+        "id": "hr-03",
+        "category": "paraphrase",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.529874996980652,
+        "leaked": []
+      },
+      {
+        "id": "hr-04",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.3019580039544962,
+        "leaked": []
+      },
+      {
+        "id": "hr-05",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.441459000692703,
+        "leaked": []
+      },
+      {
+        "id": "hr-06",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.7664579974953085,
+        "leaked": []
+      },
+      {
+        "id": "hr-07",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.5067500027944334,
+        "leaked": []
+      },
+      {
+        "id": "hr-08",
+        "category": "factual",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.946209002402611,
+        "leaked": []
+      },
+      {
+        "id": "hr-09",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.858790998288896,
+        "leaked": []
+      },
+      {
+        "id": "fin-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.5151660011033528,
+        "leaked": []
+      },
+      {
+        "id": "fin-02",
+        "category": "factual",
+        "first_relevant_rank": 5,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.520375004678499,
+        "leaked": []
+      },
+      {
+        "id": "fin-03",
+        "category": "paraphrase",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.8585000036400743,
+        "leaked": []
+      },
+      {
+        "id": "fin-04",
+        "category": "factual",
+        "first_relevant_rank": 3,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.368542001931928,
+        "leaked": []
+      },
+      {
+        "id": "fin-05",
+        "category": "paraphrase",
+        "first_relevant_rank": 8,
+        "coverage_at_k": 0.0,
+        "latency_ms": 2.511583996238187,
+        "leaked": []
+      },
+      {
+        "id": "sec-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.749000006588176,
+        "leaked": []
+      },
+      {
+        "id": "sec-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.4156660001608543,
+        "leaked": []
+      },
+      {
+        "id": "sec-03",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.570791999460198,
+        "leaked": []
+      },
+      {
+        "id": "sec-04",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.801167000143323,
+        "leaked": []
+      },
+      {
+        "id": "sec-05",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.7867079988936894,
+        "leaked": []
+      },
+      {
+        "id": "cs-01",
+        "category": "factual",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.6985830045305192,
+        "leaked": []
+      },
+      {
+        "id": "cs-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.9365410009631887,
+        "leaked": []
+      },
+      {
+        "id": "cs-03",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.8300420017330907,
+        "leaked": []
+      },
+      {
+        "id": "inc-01",
+        "category": "identifier",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.5507500031380914,
+        "leaked": []
+      },
+      {
+        "id": "inc-02",
+        "category": "identifier",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.835457999026403,
+        "leaked": []
+      },
+      {
+        "id": "inc-03",
+        "category": "identifier",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.5198329967679456,
+        "leaked": []
+      },
+      {
+        "id": "inc-04",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.9439169957186095,
+        "leaked": []
+      },
+      {
+        "id": "adr-01",
+        "category": "identifier",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 3.1528749968856573,
+        "leaked": []
+      },
+      {
+        "id": "adr-02",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.7720000070985407,
+        "leaked": []
+      },
+      {
+        "id": "sup-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.908958005718887,
+        "leaked": []
+      },
+      {
+        "id": "sup-02",
+        "category": "factual",
+        "first_relevant_rank": 8,
+        "coverage_at_k": 0.0,
+        "latency_ms": 2.9104170025675558,
+        "leaked": []
+      },
+      {
+        "id": "prd-01",
+        "category": "factual",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.657500001078006,
+        "leaked": []
+      },
+      {
+        "id": "prd-02",
+        "category": "factual",
+        "first_relevant_rank": 3,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.851999997801613,
+        "leaked": []
+      },
+      {
+        "id": "x-01",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.9250410007080063,
+        "leaked": []
+      },
+      {
+        "id": "x-02",
+        "category": "cross_doc",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.811707992805168,
+        "leaked": []
+      },
+      {
+        "id": "x-03",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.9431670045596547,
+        "leaked": []
+      },
+      {
+        "id": "acl-01",
+        "category": "restricted",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 3.053291999094654,
+        "leaked": []
+      },
+      {
+        "id": "acl-02",
+        "category": "restricted",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 2.957583994430024,
+        "leaked": []
+      }
+    ]
+  },
+  {
+    "name": "Vector only",
+    "embedder": "text-embedding-3-small",
+    "mode": "vector",
+    "rerank": false,
+    "hit_at_1": 0.8108108108108109,
+    "recall_at_5": 0.972972972972973,
+    "mrr_at_10": 0.8826576576576577,
+    "evidence_coverage_at_5": 0.9594594594594594,
+    "leaks": 0,
+    "latency_p50_ms": 226.34020799887367,
+    "latency_p95_ms": 359.6120419970248,
+    "recall_at_5_by_category": {
+      "cross_doc": 1.0,
+      "factual": 1.0,
+      "identifier": 0.75,
+      "paraphrase": 1.0,
+      "restricted": 1.0
+    },
+    "questions": [
+      {
+        "id": "hr-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 389.3122500012396,
+        "leaked": []
+      },
+      {
+        "id": "hr-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 255.6784999978845,
+        "leaked": []
+      },
+      {
+        "id": "hr-03",
+        "category": "paraphrase",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 184.80600000475533,
+        "leaked": []
+      },
+      {
+        "id": "hr-04",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 204.7012499970151,
+        "leaked": []
+      },
+      {
+        "id": "hr-05",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 303.75170900515513,
+        "leaked": []
+      },
+      {
+        "id": "hr-06",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 193.84899999568006,
+        "leaked": []
+      },
+      {
+        "id": "hr-07",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 220.274208993942,
+        "leaked": []
+      },
+      {
+        "id": "hr-08",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 198.1596659970819,
+        "leaked": []
+      },
+      {
+        "id": "hr-09",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 235.13824999827193,
+        "leaked": []
+      },
+      {
+        "id": "fin-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 224.28608300106134,
+        "leaked": []
+      },
+      {
+        "id": "fin-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 299.0358329989249,
+        "leaked": []
+      },
+      {
+        "id": "fin-03",
+        "category": "paraphrase",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 192.98274999891873,
+        "leaked": []
+      },
+      {
+        "id": "fin-04",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 331.9960419976269,
+        "leaked": []
+      },
+      {
+        "id": "fin-05",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 246.82333300006576,
+        "leaked": []
+      },
+      {
+        "id": "sec-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 184.7109160007676,
+        "leaked": []
+      },
+      {
+        "id": "sec-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 305.32137499540113,
+        "leaked": []
+      },
+      {
+        "id": "sec-03",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 309.19675000041025,
+        "leaked": []
+      },
+      {
+        "id": "sec-04",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 217.06125000491738,
+        "leaked": []
+      },
+      {
+        "id": "sec-05",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 198.50933300040197,
+        "leaked": []
+      },
+      {
+        "id": "cs-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 201.0347079994972,
+        "leaked": []
+      },
+      {
+        "id": "cs-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 300.53345899796113,
+        "leaked": []
+      },
+      {
+        "id": "cs-03",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 190.5936249968363,
+        "leaked": []
+      },
+      {
+        "id": "inc-01",
+        "category": "identifier",
+        "first_relevant_rank": 8,
+        "coverage_at_k": 0.0,
+        "latency_ms": 236.59116699855076,
+        "leaked": []
+      },
+      {
+        "id": "inc-02",
+        "category": "identifier",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 226.34020799887367,
+        "leaked": []
+      },
+      {
+        "id": "inc-03",
+        "category": "identifier",
+        "first_relevant_rank": 3,
+        "coverage_at_k": 1.0,
+        "latency_ms": 848.3114999980899,
+        "leaked": []
+      },
+      {
+        "id": "inc-04",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 237.4093750040629,
+        "leaked": []
+      },
+      {
+        "id": "adr-01",
+        "category": "identifier",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 227.2310420012218,
+        "leaked": []
+      },
+      {
+        "id": "adr-02",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 261.2280839966843,
+        "leaked": []
+      },
+      {
+        "id": "sup-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 190.903333001188,
+        "leaked": []
+      },
+      {
+        "id": "sup-02",
+        "category": "factual",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 179.44383299618494,
+        "leaked": []
+      },
+      {
+        "id": "prd-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 210.33937500033062,
+        "leaked": []
+      },
+      {
+        "id": "prd-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 176.6787500018836,
+        "leaked": []
+      },
+      {
+        "id": "x-01",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 0.5,
+        "latency_ms": 186.50054200406885,
+        "leaked": []
+      },
+      {
+        "id": "x-02",
+        "category": "cross_doc",
+        "first_relevant_rank": 5,
+        "coverage_at_k": 1.0,
+        "latency_ms": 359.6120419970248,
+        "leaked": []
+      },
+      {
+        "id": "x-03",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 270.7749999972293,
+        "leaked": []
+      },
+      {
+        "id": "acl-01",
+        "category": "restricted",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 226.717749996169,
+        "leaked": []
+      },
+      {
+        "id": "acl-02",
+        "category": "restricted",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 215.8459580023191,
+        "leaked": []
+      }
+    ]
+  },
+  {
+    "name": "Hybrid (RRF)",
+    "embedder": "text-embedding-3-small",
+    "mode": "hybrid",
+    "rerank": false,
+    "hit_at_1": 0.8378378378378378,
+    "recall_at_5": 1.0,
+    "mrr_at_10": 0.9009009009009009,
+    "evidence_coverage_at_5": 1.0,
+    "leaks": 0,
+    "latency_p50_ms": 234.0084579991526,
+    "latency_p95_ms": 326.75149999704445,
+    "recall_at_5_by_category": {
+      "cross_doc": 1.0,
+      "factual": 1.0,
+      "identifier": 1.0,
+      "paraphrase": 1.0,
+      "restricted": 1.0
+    },
+    "questions": [
+      {
+        "id": "hr-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 241.09266699815635,
+        "leaked": []
+      },
+      {
+        "id": "hr-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 220.55649999674642,
+        "leaked": []
+      },
+      {
+        "id": "hr-03",
+        "category": "paraphrase",
+        "first_relevant_rank": 3,
+        "coverage_at_k": 1.0,
+        "latency_ms": 206.96654099447187,
+        "leaked": []
+      },
+      {
+        "id": "hr-04",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 186.3659170048777,
+        "leaked": []
+      },
+      {
+        "id": "hr-05",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 323.606000005384,
+        "leaked": []
+      },
+      {
+        "id": "hr-06",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 216.62233299866784,
+        "leaked": []
+      },
+      {
+        "id": "hr-07",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 204.06037499924423,
+        "leaked": []
+      },
+      {
+        "id": "hr-08",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 267.82700000330806,
+        "leaked": []
+      },
+      {
+        "id": "hr-09",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 205.3346250031609,
+        "leaked": []
+      },
+      {
+        "id": "fin-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 326.75149999704445,
+        "leaked": []
+      },
+      {
+        "id": "fin-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 343.0792500003008,
+        "leaked": []
+      },
+      {
+        "id": "fin-03",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 182.46075000206474,
+        "leaked": []
+      },
+      {
+        "id": "fin-04",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 191.73466700158315,
+        "leaked": []
+      },
+      {
+        "id": "fin-05",
+        "category": "paraphrase",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 195.60495799669297,
+        "leaked": []
+      },
+      {
+        "id": "sec-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 238.31158300163224,
+        "leaked": []
+      },
+      {
+        "id": "sec-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 237.93937499431195,
+        "leaked": []
+      },
+      {
+        "id": "sec-03",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 234.0084579991526,
+        "leaked": []
+      },
+      {
+        "id": "sec-04",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 291.61424999620067,
+        "leaked": []
+      },
+      {
+        "id": "sec-05",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 242.06062500161352,
+        "leaked": []
+      },
+      {
+        "id": "cs-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 281.9853749970207,
+        "leaked": []
+      },
+      {
+        "id": "cs-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 260.70595900091575,
+        "leaked": []
+      },
+      {
+        "id": "cs-03",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 261.73287499841535,
+        "leaked": []
+      },
+      {
+        "id": "inc-01",
+        "category": "identifier",
+        "first_relevant_rank": 3,
+        "coverage_at_k": 1.0,
+        "latency_ms": 194.2491660011001,
+        "leaked": []
+      },
+      {
+        "id": "inc-02",
+        "category": "identifier",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 215.18716600257903,
+        "leaked": []
+      },
+      {
+        "id": "inc-03",
+        "category": "identifier",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 231.50529099802952,
+        "leaked": []
+      },
+      {
+        "id": "inc-04",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 193.7503340013791,
+        "leaked": []
+      },
+      {
+        "id": "adr-01",
+        "category": "identifier",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 215.25116699922364,
+        "leaked": []
+      },
+      {
+        "id": "adr-02",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 322.0877920030034,
+        "leaked": []
+      },
+      {
+        "id": "sup-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 202.32825000130106,
+        "leaked": []
+      },
+      {
+        "id": "sup-02",
+        "category": "factual",
+        "first_relevant_rank": 3,
+        "coverage_at_k": 1.0,
+        "latency_ms": 312.4387080024462,
+        "leaked": []
+      },
+      {
+        "id": "prd-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 205.45066699560266,
+        "leaked": []
+      },
+      {
+        "id": "prd-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 531.5890410056454,
+        "leaked": []
+      },
+      {
+        "id": "x-01",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 258.22533299651695,
+        "leaked": []
+      },
+      {
+        "id": "x-02",
+        "category": "cross_doc",
+        "first_relevant_rank": 3,
+        "coverage_at_k": 1.0,
+        "latency_ms": 263.78616700094426,
+        "leaked": []
+      },
+      {
+        "id": "x-03",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 198.25024999590823,
+        "leaked": []
+      },
+      {
+        "id": "acl-01",
+        "category": "restricted",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 203.40387499891222,
+        "leaked": []
+      },
+      {
+        "id": "acl-02",
+        "category": "restricted",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 259.3852499994682,
+        "leaked": []
+      }
+    ]
+  },
+  {
+    "name": "Hybrid + LLM rerank",
+    "embedder": "text-embedding-3-small",
+    "mode": "hybrid",
+    "rerank": true,
+    "hit_at_1": 0.9459459459459459,
+    "recall_at_5": 1.0,
+    "mrr_at_10": 0.9684684684684685,
+    "evidence_coverage_at_5": 1.0,
+    "leaks": 0,
+    "latency_p50_ms": 1247.7071670000441,
+    "latency_p95_ms": 1669.91374999634,
+    "recall_at_5_by_category": {
+      "cross_doc": 1.0,
+      "factual": 1.0,
+      "identifier": 1.0,
+      "paraphrase": 1.0,
+      "restricted": 1.0
+    },
+    "questions": [
+      {
+        "id": "hr-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1500.3591670028982,
+        "leaked": []
+      },
+      {
+        "id": "hr-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1355.9635409983457,
+        "leaked": []
+      },
+      {
+        "id": "hr-03",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1526.8479169972125,
+        "leaked": []
+      },
+      {
+        "id": "hr-04",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1102.6609580003424,
+        "leaked": []
+      },
+      {
+        "id": "hr-05",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1128.1761249992996,
+        "leaked": []
+      },
+      {
+        "id": "hr-06",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1169.8680000044988,
+        "leaked": []
+      },
+      {
+        "id": "hr-07",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1199.3453750037588,
+        "leaked": []
+      },
+      {
+        "id": "hr-08",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1587.7190829996835,
+        "leaked": []
+      },
+      {
+        "id": "hr-09",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1478.9329999985057,
+        "leaked": []
+      },
+      {
+        "id": "fin-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1883.5961250006221,
+        "leaked": []
+      },
+      {
+        "id": "fin-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1048.5355419950793,
+        "leaked": []
+      },
+      {
+        "id": "fin-03",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1386.8403750020661,
+        "leaked": []
+      },
+      {
+        "id": "fin-04",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1178.7147499999264,
+        "leaked": []
+      },
+      {
+        "id": "fin-05",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1247.7071670000441,
+        "leaked": []
+      },
+      {
+        "id": "sec-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1242.3047080010292,
+        "leaked": []
+      },
+      {
+        "id": "sec-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1669.91374999634,
+        "leaked": []
+      },
+      {
+        "id": "sec-03",
+        "category": "paraphrase",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1074.040250001417,
+        "leaked": []
+      },
+      {
+        "id": "sec-04",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1254.2700830017566,
+        "leaked": []
+      },
+      {
+        "id": "sec-05",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1183.7644159968477,
+        "leaked": []
+      },
+      {
+        "id": "cs-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1575.4393329989398,
+        "leaked": []
+      },
+      {
+        "id": "cs-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1125.9455409963266,
+        "leaked": []
+      },
+      {
+        "id": "cs-03",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1379.2028750031022,
+        "leaked": []
+      },
+      {
+        "id": "inc-01",
+        "category": "identifier",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1384.2099999965285,
+        "leaked": []
+      },
+      {
+        "id": "inc-02",
+        "category": "identifier",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1455.907458999718,
+        "leaked": []
+      },
+      {
+        "id": "inc-03",
+        "category": "identifier",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1880.8160409971606,
+        "leaked": []
+      },
+      {
+        "id": "inc-04",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1234.1761249990668,
+        "leaked": []
+      },
+      {
+        "id": "adr-01",
+        "category": "identifier",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1266.6951249993872,
+        "leaked": []
+      },
+      {
+        "id": "adr-02",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1435.662042000331,
+        "leaked": []
+      },
+      {
+        "id": "sup-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1397.7040000027046,
+        "leaked": []
+      },
+      {
+        "id": "sup-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1180.9773330023745,
+        "leaked": []
+      },
+      {
+        "id": "prd-01",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1411.5968749974854,
+        "leaked": []
+      },
+      {
+        "id": "prd-02",
+        "category": "factual",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1125.141500000609,
+        "leaked": []
+      },
+      {
+        "id": "x-01",
+        "category": "cross_doc",
+        "first_relevant_rank": 2,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1229.1645419973065,
+        "leaked": []
+      },
+      {
+        "id": "x-02",
+        "category": "cross_doc",
+        "first_relevant_rank": 3,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1226.1737910012016,
+        "leaked": []
+      },
+      {
+        "id": "x-03",
+        "category": "cross_doc",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1092.2470829973463,
+        "leaked": []
+      },
+      {
+        "id": "acl-01",
+        "category": "restricted",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1206.8978330062237,
+        "leaked": []
+      },
+      {
+        "id": "acl-02",
+        "category": "restricted",
+        "first_relevant_rank": 1,
+        "coverage_at_k": 1.0,
+        "latency_ms": 1013.1666669985862,
+        "leaked": []
+      }
+    ]
+  }
+]
