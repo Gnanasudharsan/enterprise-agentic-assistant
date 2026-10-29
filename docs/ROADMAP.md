@@ -14,24 +14,25 @@ Legend: ✅ done · ⏳ in progress · ⬜ planned
 - [x] Repo conventions: license, `.gitignore`, `.env.example`, contributing, security policy
 - [x] GitHub issue and PR templates
 
-## Phase 1 — Foundation ⏳
+## Phase 1 — Foundation ✅
 
 **Deliverable:** A user submits a prompt and gets a model-generated answer through our own application.
 
-- [ ] `backend/` FastAPI app with a `/health` endpoint
-- [ ] Typed settings (`pydantic-settings`) loaded from `.env`
-- [ ] LLM client wrapper (OpenAI-compatible) with timeout and error handling
-- [ ] `POST /api/v1/chat` endpoint with Pydantic request/response models
-- [ ] PostgreSQL + pgvector via `docker-compose.yml`
-- [ ] DB connection and migrations (Alembic)
-- [ ] Dockerfile for the backend
-- [ ] pytest suite with a mocked LLM; tests pass in CI
-- [ ] GitHub Actions CI: lint (ruff) + tests
-- [ ] Minimal frontend skeleton (React + TS) that calls `/chat`
+- [x] `backend/` FastAPI app with `/health` (liveness) and `/health/ready` (DB readiness)
+- [x] Typed settings (`pydantic-settings`) loaded from `.env`, validated at startup
+- [x] Provider-agnostic LLM client: OpenAI-compatible + offline `fake` provider; timeout and error mapping (504/502)
+- [x] `POST /api/v1/chat` endpoint with Pydantic request/response models
+- [x] PostgreSQL + pgvector via `docker-compose.yml`
+- [x] Async SQLAlchemy + Alembic migrations (`chat_runs` table; `vector` extension enabled)
+- [x] Every run persisted (succeeded and failed) with latency and token usage
+- [x] Dockerfile for the backend (non-root, healthcheck, migrations on start)
+- [x] pytest suite with a stubbed LLM (unit) plus integration tests against real pgvector
+- [x] GitHub Actions CI: ruff, unit tests, integration tests, Docker smoke test, frontend build
+- [x] Minimal frontend (React + TS) that calls `/chat`
 
-**Acceptance:** `docker compose up` → `curl /health` returns 200 → `POST /chat` returns an answer → `pytest` is green.
+**Acceptance (verified):** `docker compose up` → `/health/ready` returns 200 → `POST /api/v1/chat` returns an answer with a `run_id` stored in Postgres → `pytest` is green locally and in CI.
 
-## Phase 2 — Reliable hybrid RAG ⬜
+## Phase 2 — Reliable hybrid RAG ⏳
 
 **Deliverable:** Ask questions about uploaded documents and get answers with verifiable source passages.
 

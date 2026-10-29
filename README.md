@@ -3,7 +3,8 @@
 > A multi-agent AI assistant that answers business questions by searching enterprise documents, analyzing structured data, and running authorized workflows. Every answer cites its sources, and every action needs human approval.
 
 ![Status](https://img.shields.io/badge/status-in%20development-yellow)
-![Phase](https://img.shields.io/badge/phase-0%20%E2%80%94%20planning-blue)
+[![CI](https://github.com/Gnanasudharsan/enterprise-agentic-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/Gnanasudharsan/enterprise-agentic-assistant/actions/workflows/ci.yml)
+![Phase](https://img.shields.io/badge/phase-1%20%E2%80%94%20foundation-blue)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -163,8 +164,8 @@ Each phase ends with a working, **tested** deliverable. Full checklist: [`docs/R
 | Phase | Goal | Deliverable | Status |
 | --- | --- | --- | --- |
 | 0 | Project planning & repository setup | README, architecture, roadmap, repo conventions | ✅ Done |
-| 1 | Foundation | Prompt in → LLM answer out, through our own FastAPI app + Postgres + Docker | ⏳ Next |
-| 2 | Reliable hybrid RAG | Questions over uploaded docs, answered with verifiable source passages | ⬜ Planned |
+| 1 | Foundation | Prompt in → LLM answer out, through our own FastAPI app + Postgres + Docker | ✅ Done |
+| 2 | Reliable hybrid RAG | Questions over uploaded docs, answered with verifiable source passages | ⏳ Next |
 | 3 | LangGraph multi-agent orchestration | Complex questions trigger coordinated retrieval + SQL analysis | ⬜ Planned |
 | 4 | MCP & controlled actions | Drafted task → approval → created only after authorization | ⬜ Planned |
 | 5 | Evaluation, reliability & security | Reproducible reports: baseline RAG vs. hybrid vs. agentic | ⬜ Planned |
@@ -204,15 +205,20 @@ Target layout. Directories are filled in as each phase lands.
 enterprise-agentic-assistant/
 ├── backend/
 │   ├── app/
-│   │   ├── api/            # FastAPI routers
+│   │   ├── api/            # FastAPI routers + dependencies
+│   │   ├── core/           # typed settings
+│   │   ├── llm/            # provider-agnostic LLM clients
+│   │   ├── schemas/        # Pydantic request/response models
 │   │   ├── agents/         # supervisor, research, data, analysis, action
 │   │   ├── rag/            # ingestion, chunking, embeddings, retrieval, reranking
 │   │   ├── graph/          # LangGraph state, builder, routing
 │   │   ├── tools/          # MCP adapters & typed tools
 │   │   ├── security/       # authn/z, SQL guardrails, approval policy
-│   │   ├── db/             # models, migrations, sessions
+│   │   ├── db/             # SQLAlchemy models, sessions
 │   │   └── main.py
-│   └── tests/
+│   ├── alembic/            # database migrations
+│   ├── tests/              # unit + integration tests
+│   └── Dockerfile
 ├── frontend/               # React + TypeScript UI
 ├── datasets/
 │   ├── documents/          # unstructured corpus
@@ -220,6 +226,7 @@ enterprise-agentic-assistant/
 │   └── evaluation/         # gold Q&A + evidence labels
 ├── evals/                  # evaluation harness & reports
 ├── docs/                   # architecture, roadmap, decisions
+├── .github/workflows/      # CI
 ├── docker-compose.yml
 ├── .env.example
 └── README.md
@@ -227,14 +234,77 @@ enterprise-agentic-assistant/
 
 ## Getting started
 
-> Runnable setup instructions arrive with **Phase 1**. Planned workflow:
+What works today (Phase 1): a FastAPI backend that answers prompts through a pluggable LLM client, records every run in PostgreSQL + pgvector, and serves a minimal React UI.
+
+### Prerequisites
+
+- Docker (with Compose v2.24+)
+- Node.js 20.19+ (for the frontend)
+- Python 3.11+ (only for running backend tests or the backend outside Docker)
+
+### 1. Start the backend and database
 
 ```bash
 git clone https://github.com/Gnanasudharsan/enterprise-agentic-assistant.git
 cd enterprise-agentic-assistant
-cp .env.example .env          # add your LLM API key
-docker compose up --build     # backend + PostgreSQL (pgvector)
+docker compose up --build
 ```
+
+This works with **zero configuration**. With no `.env`, the backend uses the offline `fake` LLM provider, which gives deterministic answers without an API key. Database migrations run automatically on startup.
+
+To use a real model, create `.env` from the example and set your key:
+
+```bash
+cp .env.example .env
+# then edit .env:  LLM_PROVIDER=openai  and  LLM_API_KEY=sk-...
+docker compose up --build
+```
+
+Any OpenAI-compatible endpoint works through `LLM_BASE_URL` and `LLM_MODEL`.
+
+### 2. Try the API
+
+```bash
+curl localhost:8000/health/ready
+```
+
+```bash
+curl -X POST localhost:8000/api/v1/chat -H 'content-type: application/json' -d '{"prompt": "What should a new employee do in their first week?"}'
+```
+
+Interactive API docs: <http://localhost:8000/docs>
+
+| Endpoint | Description |
+| --- | --- |
+| `GET /health` | Liveness (process is up) |
+| `GET /health/ready` | Readiness (database reachable), `503` otherwise |
+| `POST /api/v1/chat` | `{"prompt": "..."}` → answer, provider, model, latency, token usage, `run_id` |
+
+### 3. Run the frontend
+
+```bash
+cd frontend && npm install && npm run dev
+```
+
+Open <http://localhost:5173>. The dev server proxies `/api` and `/health` to the backend on port 8000.
+
+### Running tests
+
+```bash
+cd backend && python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+```
+
+```bash
+cd backend && .venv/bin/pytest
+```
+
+Integration tests need a running Postgres + pgvector, for example the compose database on host port 5433:
+
+```bash
+cd backend && DATABASE_URL=postgresql+asyncpg://assistant:change-me@localhost:5433/assistant .venv/bin/pytest -m integration
+```
+
+CI runs lint, unit tests, integration tests against pgvector, a Docker Compose smoke test, and the frontend build on every push.
 
 ## Security principles
 

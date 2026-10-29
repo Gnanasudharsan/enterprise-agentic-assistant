@@ -23,6 +23,7 @@ build/
 node_modules/
 frontend/dist/
 frontend/.vite/
+*.tsbuildinfo
 npm-debug.log*
 
 # --- Data & artifacts ---
