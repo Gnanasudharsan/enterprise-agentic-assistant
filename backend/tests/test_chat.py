@@ -3,6 +3,7 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
+from app import __version__
 from app.llm.base import LLMError, LLMTimeoutError
 
 
@@ -138,7 +139,7 @@ def test_stream_reports_error_event_and_records_failure(client, llm, chat_runs):
 
 def test_info_reports_model_and_demo_mode(client):
     assert client.get("/api/v1/info").json() == {
-        "version": "0.1.0",
+        "version": __version__,
         "provider": "stub",
         "model": "stub-model",
         "demo_mode": False,

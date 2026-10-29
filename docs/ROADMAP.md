@@ -32,22 +32,25 @@ Legend: ✅ done · ⏳ in progress · ⬜ planned
 
 **Acceptance (verified):** `docker compose up` → `/health/ready` returns 200 → `POST /api/v1/chat` returns an answer with a `run_id` stored in Postgres → `pytest` is green locally and in CI.
 
-## Phase 2 — Reliable hybrid RAG ⏳
+## Phase 2 — Reliable hybrid RAG ✅
 
 **Deliverable:** Ask questions about uploaded documents and get answers with verifiable source passages.
 
-- [ ] Document ingestion (Markdown, PDF, DOCX) with text cleaning
-- [ ] Chunking that keeps metadata (doc id, section, page, version, ACL)
-- [ ] Embeddings stored in pgvector
-- [ ] PostgreSQL full-text search (keyword channel)
-- [ ] Hybrid fusion (Reciprocal Rank Fusion)
-- [ ] Cross-encoder reranking
-- [ ] Permission filtering before generation
-- [ ] Answers with citations to stable passage IDs, and a check that each cited ID exists
-- [ ] Synthetic company corpus v1 + gold retrieval labels
-- [ ] Recall@5 measured on the gold set
+- [x] Document ingestion (Markdown, PDF, DOCX, text) with text cleaning and front-matter metadata
+- [x] Heading-aware chunking that keeps metadata (doc key, heading path, chunk index, version, ACL)
+- [x] Embeddings stored in pgvector (HNSW, cosine); offline hashing embedder for CI and no-key runs
+- [x] PostgreSQL full-text search (keyword channel, weighted generated `tsvector`)
+- [x] Hybrid fusion (Reciprocal Rank Fusion)
+- [x] Second-stage reranking: **LLM listwise reranker** (optional, `RERANKER=llm`). A cross-encoder was planned; the LLM judge avoids a model download and was measured instead (Hit@1 84% → ~95%). A cross-encoder comparison moves to Phase 5.
+- [x] Permission filtering inside the retrieval SQL, before generation
+- [x] Answers with `[S#]` citations validated against the provided passages; invalid markers removed and counted
+- [x] Synthetic company corpus v1 (12 documents, 2 restricted) + 37-question gold set
+- [x] Recall@5 measured: **100%** hybrid (vs. 97% vector-only, 92% keyword-only); 0 ACL leaks
+- [x] Documents API (list, upload, passage lookup) and UI (citations, source panel, knowledge-base browser)
 
-## Phase 3 — LangGraph multi-agent orchestration ⬜
+**Acceptance (verified):** `docker compose up` seeds the corpus → a cross-document question returns a grounded answer whose citations open the exact passages → retrieval and answer evaluations are reproducible (`evals/`) and CI checks a correctly cited answer.
+
+## Phase 3 — LangGraph multi-agent orchestration ⏳
 
 **Deliverable:** A complex question automatically triggers coordinated document retrieval and SQL analysis.
 
