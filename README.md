@@ -4,7 +4,7 @@
 
 ![Status](https://img.shields.io/badge/status-in%20development-yellow)
 [![CI](https://github.com/Gnanasudharsan/enterprise-agentic-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/Gnanasudharsan/enterprise-agentic-assistant/actions/workflows/ci.yml)
-![Phase](https://img.shields.io/badge/phase-1%20%E2%80%94%20foundation-blue)
+![Phase](https://img.shields.io/badge/phase-2%20%E2%80%94%20hybrid%20RAG-blue)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -143,10 +143,10 @@ Proposes typed actions (e.g. `create_issue`). Nothing runs until the user approv
 | --- | --- |
 | LLM | OpenAI-compatible API (OpenAI / Gemini) |
 | Orchestration | LangGraph |
-| RAG framework | LangChain |
+| RAG pipeline | Built directly on Postgres (no framework): parsing, chunking, hybrid search, grounding |
 | Vector + relational DB | PostgreSQL + pgvector |
 | Keyword retrieval | PostgreSQL full-text search |
-| Reranking | Cross-encoder |
+| Reranking | Optional LLM listwise reranker (cross-encoder evaluated later) |
 | Backend | FastAPI + Pydantic |
 | Frontend | React + TypeScript |
 | Tool integration | MCP + explicit adapters |
@@ -165,17 +165,34 @@ Each phase ends with a working, **tested** deliverable. Full checklist: [`docs/R
 | --- | --- | --- | --- |
 | 0 | Project planning & repository setup | README, architecture, roadmap, repo conventions | ✅ Done |
 | 1 | Foundation | Prompt in → LLM answer out, through our own FastAPI app + Postgres + Docker | ✅ Done |
-| 2 | Reliable hybrid RAG | Questions over uploaded docs, answered with verifiable source passages | ⏳ Next |
-| 3 | LangGraph multi-agent orchestration | Complex questions trigger coordinated retrieval + SQL analysis | ⬜ Planned |
+| 2 | Reliable hybrid RAG | Questions over uploaded docs, answered with verifiable source passages | ✅ Done |
+| 3 | LangGraph multi-agent orchestration | Complex questions trigger coordinated retrieval + SQL analysis | ⏳ Next |
 | 4 | MCP & controlled actions | Drafted task → approval → created only after authorization | ⬜ Planned |
 | 5 | Evaluation, reliability & security | Reproducible reports: baseline RAG vs. hybrid vs. agentic | ⬜ Planned |
 | 6 | Deployment & presentation | Deployed on Cloud Run with docs, diagrams, eval results, demo | ⬜ Planned |
 
 Changes are logged in [`CHANGELOG.md`](CHANGELOG.md).
 
-## Evaluation plan
+## Evaluation
 
-These are **proposed acceptance criteria**. They are targets, not achieved results.
+### Measured so far (Phase 2, 2026-10-29)
+
+Measured on the synthetic Helio corpus with a 37-question gold set ([retrieval report](evals/reports/retrieval-2026-10-29.md), [answer report](evals/reports/answers-2026-10-29.md)):
+
+| Retrieval configuration | Hit@1 | Recall@5 | MRR@10 | ACL leaks |
+| --- | --- | --- | --- | --- |
+| Keyword only (Postgres FTS) | 78% | 92% | 0.859 | 0 |
+| Vector only (`text-embedding-3-small`) | 81% | 97% | 0.883 | 0 |
+| **Hybrid (RRF)** | 84% | **100%** | 0.901 | 0 |
+| Hybrid + LLM rerank (+~1 s) | 95% | 100% | ~0.97 | 0 |
+
+End-to-end answers (`gpt-4.1-mini`, hybrid, top-6): **100% citation validity**, **100%** of answerable questions cite a passage containing the gold evidence, **0 / 2** restricted questions leaked facts to a regular employee. p95 latency 1.7 s.
+
+The corpus is small and the gold set was written by the same author, so these absolute numbers are optimistic; the comparison between configurations is the meaningful signal. Reproduce with the commands in [`evals/`](evals/retrieval_eval.py).
+
+### Targets for the full system
+
+These are **proposed acceptance criteria** for later phases, not achieved results.
 
 | Metric | Target | Definition |
 | --- | --- | --- |
@@ -193,7 +210,9 @@ Three configurations will be compared: **(1)** basic vector RAG, **(2)** hybrid 
 The system uses a **fictional software company** built from public documentation plus **clearly labeled synthetic records**. No confidential data is used.
 
 - **Unstructured:** product docs, policies, onboarding procedures, incident reports, support notes (Markdown/PDF/DOCX)
-- **Structured:** PostgreSQL tables such as `customers`, `onboarding_events`, `support_tickets`, `issues`, and `operational_metrics`
+- **Structured (Phase 3):** PostgreSQL tables such as `customers`, `onboarding_events`, `support_tickets`, `issues`, and `operational_metrics`
+
+The document corpus is in [`datasets/documents`](datasets/documents/README.md): 12 documents for the fictional *Helio Systems* (policies, procedures, incident reports, an ADR, a playbook, a spec). Two are access-restricted (`hr-confidential`, `leadership`) to test permission-aware retrieval. The September 2026 onboarding slowdown deliberately spans four documents.
 
 Because the dataset is built for this project, cross-source questions have **known answers**. That makes evaluation reproducible, and actions can be demonstrated safely.
 
@@ -210,7 +229,7 @@ enterprise-agentic-assistant/
 │   │   ├── llm/            # provider-agnostic LLM clients
 │   │   ├── schemas/        # Pydantic request/response models
 │   │   ├── agents/         # supervisor, research, data, analysis, action
-│   │   ├── rag/            # ingestion, chunking, embeddings, retrieval, reranking
+│   │   ├── rag/            # parsing, chunking, embeddings, ingestion, retrieval, reranking, grounding
 │   │   ├── graph/          # LangGraph state, builder, routing
 │   │   ├── tools/          # MCP adapters & typed tools
 │   │   ├── security/       # authn/z, SQL guardrails, approval policy
@@ -234,7 +253,12 @@ enterprise-agentic-assistant/
 
 ## Getting started
 
-What works today (Phase 1): a FastAPI backend that streams answers from a pluggable LLM client with conversation memory, records every run in PostgreSQL + pgvector, and serves a React chat UI (Markdown answers, conversation history, stop/regenerate, light/dark, mobile).
+What works today (Phases 1–2):
+
+- **Grounded answers over company documents:** hybrid retrieval (pgvector + Postgres full-text, fused with RRF), permission filtering in SQL, numbered sources, and `[S#]` citations validated against what was actually retrieved.
+- **Ingestion:** Markdown, text, PDF, and Word, with heading-aware chunking. Upload from the UI or API, or seed the demo corpus with the CLI. Re-ingestion is idempotent.
+- **Chat:** streaming answers with conversation memory. Every run is recorded with the retrieved passages and citations.
+- **UI:** clickable citations, a source preview panel, a knowledge-base browser with upload, a company-docs toggle, conversation history, and light/dark and mobile layouts.
 
 ### Prerequisites
 
@@ -250,7 +274,9 @@ cd enterprise-agentic-assistant
 docker compose up --build
 ```
 
-If `OPENAI_API_KEY` is exported in your shell, the backend uses it automatically (`LLM_PROVIDER=auto`, default model `gpt-4.1-mini`). Without a key it still starts, in **demo mode**: the UI shows a banner and answers explain how to connect a model. Database migrations run automatically on startup.
+On startup the backend applies migrations and ingests the demo corpus in `datasets/documents` (skipped when unchanged).
+
+If `OPENAI_API_KEY` is exported in your shell, the backend uses it automatically (`LLM_PROVIDER=auto`): `gpt-4.1-mini` for answers and `text-embedding-3-small` for retrieval. Without a key it still starts, in **demo mode**: retrieval uses an offline lexical embedder, and answers show the top retrieved passage plus how to connect a model.
 
 To configure the model explicitly, create `.env` from the example:
 
@@ -269,7 +295,11 @@ curl localhost:8000/health/ready
 ```
 
 ```bash
-curl -X POST localhost:8000/api/v1/chat -H 'content-type: application/json' -d '{"prompt": "What should a new employee do in their first week?"}'
+curl -X POST localhost:8000/api/v1/chat -H 'content-type: application/json' -d '{"prompt": "Why did customer onboarding slow down in September?"}'
+```
+
+```bash
+curl -X POST localhost:8000/api/v1/search -H 'content-type: application/json' -d '{"query": "INC-204 root cause", "mode": "hybrid"}'
 ```
 
 Interactive API docs: <http://localhost:8000/docs>
@@ -280,7 +310,23 @@ Interactive API docs: <http://localhost:8000/docs>
 | `GET /health/ready` | Readiness (database reachable), `503` otherwise |
 | `GET /api/v1/info` | Serving provider and model, plus `demo_mode` |
 | `POST /api/v1/chat` | `{"prompt": "...", "history": [...]}` → answer, provider, model, latency, token usage, `run_id` |
-| `POST /api/v1/chat/stream` | Same request; Server-Sent Events: `delta` (text), then `done` (full response) or `error` |
+| `POST /api/v1/chat/stream` | Same request; Server-Sent Events: `sources`, `delta` (text), then `done` (citation-checked response) or `error` |
+| `POST /api/v1/search` | `{"query", "mode": "hybrid\|vector\|keyword", "top_k"}` → ranked passages with vector/keyword ranks |
+| `GET /api/v1/documents` | Documents the caller can read |
+| `POST /api/v1/documents` | Multipart upload (`.md`, `.txt`, `.pdf`, `.docx`, 5 MB), optional `acl` |
+| `GET /api/v1/chunks/{id}` | One passage with its document metadata (ACL-checked) |
+
+Chat requests accept `use_knowledge_base` (default `true`). Responses include `retrieval`, `sources`, `citations` (validated source numbers), and `invalid_citations`.
+
+### Knowledge base CLI
+
+```bash
+cd backend && .venv/bin/python -m app.rag.cli ingest ../datasets/documents
+```
+
+```bash
+cd backend && .venv/bin/python -m app.rag.cli search "how many PTO days carry over" --mode hybrid
+```
 
 ### 3. Run the frontend
 
@@ -300,13 +346,31 @@ cd backend && python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 cd backend && .venv/bin/pytest
 ```
 
-Integration tests need a running Postgres + pgvector, for example the compose database on host port 5433:
+Integration tests need a Postgres + pgvector they can **wipe**: they migrate from scratch and truncate tables. Don't point them at the compose database you use for development. Start a throwaway one instead:
 
 ```bash
-cd backend && DATABASE_URL=postgresql+asyncpg://assistant:change-me@localhost:5433/assistant .venv/bin/pytest -m integration
+docker run -d --rm --name eaa-pg-test -e POSTGRES_USER=assistant -e POSTGRES_PASSWORD=test -e POSTGRES_DB=assistant_test -p 55432:5432 pgvector/pgvector:pg16
 ```
 
-CI runs lint, unit tests, integration tests against pgvector, a Docker Compose smoke test, and the frontend build on every push.
+```bash
+cd backend && DATABASE_URL=postgresql+asyncpg://assistant:test@localhost:55432/assistant_test .venv/bin/pytest -m integration
+```
+
+CI runs lint, unit tests, integration tests against pgvector (ingestion, hybrid retrieval, ACL enforcement, documents API), a Docker Compose smoke test that checks for a grounded, correctly cited answer, and the frontend build on every push.
+
+### Running the evaluations
+
+Use a scratch database for the retrieval evaluation, because it re-ingests the corpus with each embedder:
+
+```bash
+cd backend && DATABASE_URL=postgresql+asyncpg://assistant:test@localhost:55432/assistant_test .venv/bin/python ../evals/retrieval_eval.py --rerank
+```
+
+The answer evaluation runs against the live API (needs a real model):
+
+```bash
+cd backend && .venv/bin/python ../evals/answer_eval.py
+```
 
 ## Security principles
 

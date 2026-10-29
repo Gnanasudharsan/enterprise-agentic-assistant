@@ -56,24 +56,31 @@ sequenceDiagram
 | **Action Agent** | Proposes typed tool calls via MCP adapters | Cannot execute without recorded approval |
 | **Validator / Composer** | Checks every citation maps to a stored passage | Unverifiable claims are labeled, not hidden |
 
-## 3. Retrieval pipeline (Phase 2)
+## 3. Retrieval pipeline (Phase 2, implemented)
 
 ```
-Upload ─▶ Extract & clean ─▶ Chunk (+doc_id, section, page, version, acl)
-       ─▶ Embed ─▶ Store (Postgres: text + tsvector + vector)
+Upload / seed ─▶ Parse (md, txt, pdf, docx) + front matter (doc_id, title, acl, version)
+              ─▶ Heading-aware chunks (heading path, ≤220 words, sentence overlap)
+              ─▶ Embed "heading path + text" (text-embedding-3-small | offline hashing)
+              ─▶ documents + chunks (generated weighted tsvector, vector(1536))
 
-Query ─▶ ┬─ pgvector similarity (top-k)   ─┐
-         └─ Postgres full-text (top-k)     ─┴▶ RRF fusion ─▶ Cross-encoder rerank
-                                              ─▶ ACL filter ─▶ Passages w/ stable IDs
+Question ─▶ (+ previous question for short follow-ups)
+         ─▶ ┬─ pgvector cosine top-20   WHERE acl && caller_groups AND same embedding model ─┐
+            └─ FTS ts_rank top-20       WHERE acl && caller_groups ─────────────────────────┴▶ RRF (k=60)
+         ─▶ [optional LLM rerank] ─▶ top-6 numbered sources [S1..S6]
+         ─▶ grounded prompt ─▶ answer ─▶ citation check (drop markers to unknown sources)
+         ─▶ response: answer + sources + validated citations; run audit row
 ```
+
+See [ADR 0002](adr/0002-hybrid-retrieval-in-postgres.md) for the reasoning and measured trade-offs.
 
 ## 4. Data model (initial sketch)
 
 | Table | Purpose |
 | --- | --- |
-| `documents` | Source document metadata, version, ACL |
-| `chunks` | Chunk text, `tsvector`, `vector`, location, FK to document |
-| `runs` | One row per assistant run (user, status, timings, cost) |
+| `documents` | Source document metadata, version, ACL, content hash, embedding model *(implemented)* |
+| `chunks` | Chunk text, heading path, generated `tsvector`, `vector(1536)`, FK to document *(implemented)* |
+| `chat_runs` | One row per run: status, latency, tokens, retrieved chunks, validated citations *(implemented)* |
 | `run_steps` | Agent/tool steps for the execution trace |
 | `actions` | Proposed actions, approval decision, executor result (audit log) |
 | `checkpoints` | LangGraph state persistence |

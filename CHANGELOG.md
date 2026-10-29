@@ -5,6 +5,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-29 (Phase 2: Hybrid RAG)
+
+### Added
+- Synthetic Helio Systems corpus (12 documents, 2 access-restricted).
+- Ingestion pipeline: Markdown/text/PDF/DOCX parsing, heading-aware chunking, OpenAI or
+  offline embeddings, idempotent re-ingestion (`python -m app.rag.cli ingest`).
+- `documents` and `chunks` tables (migration `0002`): pgvector HNSW + weighted full-text GIN.
+- Hybrid retrieval (vector + keyword, RRF), SQL-level ACL filtering, optional LLM reranker.
+- Grounded chat with numbered sources and validated `[S#]` citations; `sources` SSE event.
+- `POST /api/v1/search`, `GET/POST /api/v1/documents`, `GET /api/v1/chunks/{id}`.
+- UI: citation chips, source cards and preview panel, knowledge-base browser with upload,
+  company-docs toggle.
+- Evaluation: 37-question gold set, retrieval and answer evaluation harnesses and reports.
+
+### Changed
+- Docker seeds the corpus on startup; CI smoke test asserts a correctly cited answer.
+- System prompt reflects knowledge-base access.
+
+## [0.1.1] - 2026-10-29
+
 ### Added
 - Streaming answers over Server-Sent Events (`POST /api/v1/chat/stream`).
 - Multi-turn conversation memory (`history` in chat requests; last 20 messages sent).
