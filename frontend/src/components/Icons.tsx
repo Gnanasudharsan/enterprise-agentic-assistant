@@ -21,10 +21,11 @@ function Icon({ children, ...props }: IconProps) {
   );
 }
 
+/** Helio's mark: a sun. Filled core, rays drawn with the current color. */
 export const LogoMark = (p: IconProps) => (
-  <Icon {...p}>
-    <path d="M12 3l7.5 4.3v9.4L12 21l-7.5-4.3V7.3z" />
-    <path d="M12 12l7.5-4.7M12 12v9M12 12L4.5 7.3" />
+  <Icon {...p} strokeWidth={2}>
+    <circle cx="12" cy="12" r="4.2" fill="currentColor" stroke="none" />
+    <path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" />
   </Icon>
 );
 
@@ -152,5 +153,64 @@ export const LockIcon = (p: IconProps) => (
 export const ChevronIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M9 6l6 6-6 6" />
+  </Icon>
+);
+
+export const SearchIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="11" cy="11" r="6.5" />
+    <path d="M20 20l-4.2-4.2" />
+  </Icon>
+);
+
+export const SunIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+  </Icon>
+);
+
+export const MoonIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />
+  </Icon>
+);
+
+export const MonitorIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3" y="4" width="18" height="12" rx="2" />
+    <path d="M8 20h8M12 16v4" />
+  </Icon>
+);
+
+export const ArrowDownIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 5v14M5 12l7 7 7-7" />
+  </Icon>
+);
+
+export const PaperclipIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M20 11.5l-7.8 7.8a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8" />
+  </Icon>
+);
+
+export const GlobeIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+  </Icon>
+);
+
+export const LayersIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 3l9 5-9 5-9-5z" />
+    <path d="M3 13l9 5 9-5" />
+  </Icon>
+);
+
+export const CommandIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M9 6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3z" />
   </Icon>
 );
