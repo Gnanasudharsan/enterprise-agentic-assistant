@@ -18,8 +18,11 @@ def test_chat_returns_answer_and_persists_run(client, llm, chat_runs):
     assert isinstance(body["latency_ms"], int)
 
     [messages] = llm.calls
-    assert [m.role for m in messages] == ["system", "user"]
-    assert messages[1].content == "What is our PTO policy?"  # stripped
+    # system prompt, knowledge-base context (here: nothing found), the question
+    assert [m.role for m in messages] == ["system", "system", "user"]
+    assert "no accessible documents" in messages[1].content
+    assert messages[-1].content == "What is our PTO policy?"  # stripped
+    assert body["retrieval"] == "no_results"
 
     [run] = chat_runs()
     assert str(run.id) == body["run_id"]
@@ -76,7 +79,8 @@ def test_chat_sends_conversation_history(client, llm):
 
     assert resp.status_code == 200
     [messages] = llm.calls
-    assert [(m.role, m.content) for m in messages[1:]] == [
+    turns = [(m.role, m.content) for m in messages if m.role != "system"]
+    assert turns == [
         ("user", "My name is Priya."),
         ("assistant", "Nice to meet you, Priya."),
         ("user", "What is my name?"),
@@ -90,7 +94,7 @@ def test_chat_truncates_history_to_most_recent_messages(client, llm):
     client.post("/api/v1/chat", json={"prompt": "latest", "history": history})
 
     [messages] = llm.calls
-    sent = [m.content for m in messages[1:-1]]
+    sent = [m.content for m in messages if m.role != "system"][:-1]
     assert sent == [f"m{i}" for i in range(10, 30)]
 
 
@@ -112,6 +116,7 @@ def test_stream_emits_deltas_then_done_and_persists(client, llm, chat_runs):
     deltas = "".join(d["text"] for e, d in events if e == "delta")
     assert deltas.strip() == "stub answer"
 
+    assert events[0] == ("sources", {"retrieval": "no_results", "sources": []})
     kind, done = events[-1]
     assert kind == "done"
     assert done["answer"] == "stub answer"

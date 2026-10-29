@@ -73,11 +73,13 @@ jobs:
           done
           docker compose logs backend
           exit 1
-      - name: Chat round-trip
+      - name: Grounded chat round-trip (seeded corpus, offline embedder)
         run: |
           curl -sf -X POST localhost:8000/api/v1/chat \
             -H 'content-type: application/json' \
-            -d '{"prompt":"smoke test"}' | tee /dev/stderr | grep -q '"run_id"'
+            -d '{"prompt":"How many unused PTO days carry over?"}' > answer.json
+          cat answer.json
+          python3 -c "import json; d=json.load(open('answer.json')); assert d['retrieval']=='used', d; assert d['sources'][0]['doc_key']=='HR-001', d['sources'][0]; assert d['citations']==[1], d"
       - if: always()
         run: docker compose down -v
 

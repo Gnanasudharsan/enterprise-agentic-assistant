@@ -29,6 +29,10 @@ services:
       POSTGRES_PORT: 5432
       # Forward the host's key (if any); with LLM_PROVIDER=auto it enables the real model.
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DOCUMENTS_DIR: /app/datasets/documents
+      SEED_DOCUMENTS_ON_STARTUP: ${SEED_DOCUMENTS_ON_STARTUP:-true}
+    volumes:
+      - ./datasets:/app/datasets:ro
     ports:
       - "8000:8000"
     depends_on:

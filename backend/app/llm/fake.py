@@ -6,11 +6,17 @@ from collections.abc import AsyncIterator, Sequence
 
 from app.llm.base import ChatMessage, LLMResult, StreamDelta
 
+_SOURCE = re.compile(
+    r'<source id="(S\d+)" doc="([^"]*)" location="([^"]*)">\n(.*?)\n</source>', re.S
+)
+
 DEMO_ANSWER = """\
-**Demo mode:** no language model is connected yet, so I can't answer this properly.
+**Demo mode:** no language model is connected yet, so I can't write a real answer.
 
 You asked:
 > {prompt}
+
+{retrieval}
 
 To get real answers, connect a model in one of these ways:
 
@@ -30,7 +36,19 @@ class FakeLLMClient:
 
     def _answer(self, messages: Sequence[ChatMessage]) -> LLMResult:
         prompt = next(m.content for m in reversed(messages) if m.role == "user")
-        answer = DEMO_ANSWER.format(prompt=prompt.replace("\n", "\n> "))
+        sources = [
+            m for msg in messages if msg.role == "system" for m in _SOURCE.findall(msg.content)
+        ]
+        if sources:
+            sid, doc, location, content = sources[0]
+            excerpt = " ".join(content.split())[:280]
+            retrieval = (
+                f"Knowledge-base search still works. The most relevant passage is from "
+                f"**{doc}** ({location}) [{sid}]:\n\n> {excerpt}…"
+            )
+        else:
+            retrieval = "No knowledge-base passages were provided for this question."
+        answer = DEMO_ANSWER.format(prompt=prompt.replace("\n", "\n> "), retrieval=retrieval)
         return LLMResult(
             content=answer,
             model=self.model,
