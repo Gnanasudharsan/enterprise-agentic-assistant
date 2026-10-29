@@ -3,8 +3,27 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import AliasChoices, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+DEFAULT_SYSTEM_PROMPT = """\
+You are the Enterprise Research Assistant, an AI assistant for employees of a software company.
+
+How to answer:
+- Lead with the direct answer, then supporting detail. Be specific and practical.
+- Use Markdown: short paragraphs, bullet or numbered lists for steps, **bold** for key terms,
+  and tables when comparing options. Use headings only for longer answers.
+- Match length to the question: a sentence or two for simple questions, a structured answer
+  for complex ones. Do not pad.
+- Ask one clarifying question only when the request is genuinely ambiguous.
+
+Honesty rules:
+- You do not yet have access to this company's internal documents, databases, or tools.
+  When an answer depends on company-specific policy or data, give sound general guidance and
+  say clearly that it should be confirmed against the company's internal policies.
+- Never invent company facts, numbers, names, policy details, or citations.
+- If you are unsure, say so.
+"""
 
 
 class Settings(BaseSettings):
@@ -22,19 +41,19 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173"]
 
     # --- LLM ---
-    # "fake" returns deterministic answers without network calls (local demos, CI).
-    llm_provider: Literal["openai", "fake"] = "fake"
-    llm_api_key: SecretStr | None = None
-    llm_base_url: str = "https://api.openai.com/v1"
-    llm_model: str = "gpt-4o-mini"
-    llm_timeout_seconds: float = Field(default=30.0, gt=0)
-    llm_max_retries: int = Field(default=2, ge=0)
-    llm_temperature: float = Field(default=0.2, ge=0, le=2)
-    llm_max_output_tokens: int = Field(default=1024, gt=0)
-    llm_system_prompt: str = (
-        "You are an enterprise research assistant. Answer clearly and concisely. "
-        "If you do not know something, say so instead of guessing."
+    # "auto" uses the real provider when an API key is available, otherwise "fake".
+    # "fake" returns canned answers without network calls (local demos, CI).
+    llm_provider: Literal["auto", "openai", "fake"] = "auto"
+    llm_api_key: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("llm_api_key", "openai_api_key")
     )
+    llm_base_url: str = "https://api.openai.com/v1"
+    llm_model: str = "gpt-4.1-mini"
+    llm_timeout_seconds: float = Field(default=60.0, gt=0)
+    llm_max_retries: int = Field(default=2, ge=0)
+    llm_temperature: float = Field(default=0.3, ge=0, le=2)
+    llm_max_output_tokens: int = Field(default=1500, gt=0)
+    llm_system_prompt: str = DEFAULT_SYSTEM_PROMPT
 
     # --- Database ---
     database_url: str | None = None
@@ -49,6 +68,12 @@ class Settings(BaseSettings):
         if self.llm_provider == "openai" and not self.llm_api_key:
             raise ValueError("LLM_API_KEY is required when LLM_PROVIDER=openai")
         return self
+
+    @property
+    def resolved_llm_provider(self) -> Literal["openai", "fake"]:
+        if self.llm_provider == "auto":
+            return "openai" if self.llm_api_key else "fake"
+        return self.llm_provider
 
     @property
     def sqlalchemy_url(self) -> str:

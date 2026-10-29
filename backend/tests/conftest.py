@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Sequence
 
 import pytest
 from fastapi import FastAPI
@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.db.base import Base
 from app.db.models import ChatRun
-from app.llm.base import ChatMessage, LLMResult
+from app.llm.base import ChatMessage, LLMResult, StreamDelta
 from app.main import create_app
 
 
@@ -17,6 +17,7 @@ class StubLLM:
     """Records calls and returns a canned result (or raises a canned error)."""
 
     provider = "stub"
+    model = "stub-model"
 
     def __init__(self) -> None:
         self.result = LLMResult(
@@ -32,8 +33,25 @@ class StubLLM:
             raise self.error
         return self.result
 
+    async def stream(
+        self, messages: Sequence[ChatMessage]
+    ) -> AsyncIterator[StreamDelta | LLMResult]:
+        self.calls.append(list(messages))
+        for word in self.result.content.split(" "):
+            yield StreamDelta(word + " ")
+        if self.error:  # fail mid-stream, after some text was sent
+            raise self.error
+        yield self.result
+
     async def aclose(self) -> None:
         self.closed = True
+
+
+@pytest.fixture(autouse=True)
+def _isolate_env(monkeypatch):
+    """Keep the developer's real credentials (e.g. OPENAI_API_KEY) out of tests."""
+    for var in ("OPENAI_API_KEY", "LLM_API_KEY", "LLM_PROVIDER"):
+        monkeypatch.delenv(var, raising=False)
 
 
 @pytest.fixture

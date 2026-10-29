@@ -5,9 +5,9 @@ from app.llm.openai_client import OpenAIChatClient
 
 
 def build_llm_client(settings: Settings) -> LLMClient:
-    if settings.llm_provider == "fake":
-        return FakeLLMClient()
-    assert settings.llm_api_key is not None  # enforced by Settings validation
+    if settings.resolved_llm_provider == "fake":
+        return FakeLLMClient(stream_delay_seconds=0.01)
+    assert settings.llm_api_key is not None  # guaranteed by resolved_llm_provider
     return OpenAIChatClient(
         api_key=settings.llm_api_key.get_secret_value(),
         model=settings.llm_model,
