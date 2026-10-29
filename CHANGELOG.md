@@ -5,6 +5,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ## [Unreleased]
 
+### Added
+- Streaming answers over Server-Sent Events (`POST /api/v1/chat/stream`).
+- Multi-turn conversation memory (`history` in chat requests; last 20 messages sent).
+- `GET /api/v1/info` (provider, model, demo mode).
+- Redesigned UI: sidebar with recent conversations, suggestion cards, Markdown rendering
+  (tables, code, lists), streaming cursor, stop/regenerate/copy, demo-mode banner,
+  light/dark themes, mobile layout.
+
+### Changed
+- `LLM_PROVIDER=auto` is the default: uses the real model when `LLM_API_KEY` or
+  `OPENAI_API_KEY` is set. Default model is `gpt-4.1-mini`.
+- Structured system prompt: direct-first Markdown answers, honest about lacking
+  access to internal documents.
+- The demo provider explains how to connect a model instead of echoing the prompt.
+
 ## [0.1.0] - 2026-10-29 (Phase 1: Foundation)
 
 ### Added
