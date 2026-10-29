@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import __version__
 from app.api.routes import chat, health
 from app.core.config import Settings, get_settings
+from app.db.session import build_engine, build_sessionmaker
 from app.llm.factory import build_llm_client
 
 
@@ -22,10 +23,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # Tests may pre-populate app.state.llm_client with a stub.
         if getattr(app.state, "llm_client", None) is None:
             app.state.llm_client = build_llm_client(settings)
+        app.state.engine = build_engine(settings.sqlalchemy_url)
+        app.state.sessionmaker = build_sessionmaker(app.state.engine)
         try:
             yield
         finally:
             await app.state.llm_client.aclose()
+            await app.state.engine.dispose()
 
     app = FastAPI(title=settings.app_name, version=__version__, lifespan=lifespan)
     app.state.settings = settings
