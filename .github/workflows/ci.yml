@@ -80,3 +80,19 @@ jobs:
             -d '{"prompt":"smoke test"}' | tee /dev/stderr | grep -q '"run_id"'
       - if: always()
         run: docker compose down -v
+
+  frontend:
+    name: Frontend typecheck + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
