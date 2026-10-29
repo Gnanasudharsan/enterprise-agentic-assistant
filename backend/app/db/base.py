@@ -1,4 +1,5 @@
 from sqlalchemy import MetaData
+from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase
 
 # Deterministic constraint names keep Alembic autogenerate diffs stable.
@@ -11,5 +12,5 @@ NAMING_CONVENTION = {
 }
 
 
-class Base(DeclarativeBase):
+class Base(AsyncAttrs, DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)

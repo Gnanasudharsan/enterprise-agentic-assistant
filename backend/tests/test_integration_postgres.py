@@ -4,36 +4,16 @@ Run with:  DATABASE_URL=postgresql+asyncpg://... pytest -m integration
 """
 
 import asyncio
-import os
-from pathlib import Path
 
 import pytest
-from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from alembic import command
 from app.core.config import Settings
 from app.main import create_app
 
-pytestmark = [
-    pytest.mark.integration,
-    pytest.mark.skipif(not os.getenv("DATABASE_URL"), reason="DATABASE_URL not set"),
-]
-
-BACKEND_DIR = Path(__file__).resolve().parents[1]
-
-
-@pytest.fixture(scope="module")
-def migrated_db() -> str:
-    url = os.environ["DATABASE_URL"]
-    cfg = Config(str(BACKEND_DIR / "alembic.ini"))
-    cfg.set_main_option("script_location", str(BACKEND_DIR / "alembic"))
-    cfg.set_main_option("sqlalchemy.url", url)
-    command.downgrade(cfg, "base")
-    command.upgrade(cfg, "head")
-    return url
+pytestmark = pytest.mark.integration
 
 
 async def test_migration_enables_pgvector(migrated_db):

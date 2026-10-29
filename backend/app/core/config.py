@@ -55,6 +55,20 @@ class Settings(BaseSettings):
     llm_max_output_tokens: int = Field(default=1500, gt=0)
     llm_system_prompt: str = DEFAULT_SYSTEM_PROMPT
 
+    # --- Retrieval (RAG) ---
+    # "auto" uses OpenAI embeddings when an API key is available, else the offline
+    # hashing embedder. Changing the embedder re-embeds documents on next ingestion.
+    embedding_provider: Literal["auto", "openai", "hashing"] = "auto"
+    embedding_model: str = "text-embedding-3-small"
+    retrieval_top_k: int = Field(default=6, ge=1, le=20)
+    retrieval_candidates: int = Field(default=20, ge=1, le=100)  # per channel, before fusion
+    rrf_k: int = Field(default=60, ge=1)
+    reranker: Literal["none", "llm"] = "none"
+    # Groups of the (single, demo) user until authentication lands. Retrieval only
+    # returns chunks from documents whose ACL overlaps these groups.
+    user_groups: list[str] = ["all-employees"]
+    documents_dir: str = "../datasets/documents"
+
     # --- Database ---
     database_url: str | None = None
     postgres_user: str = "assistant"
@@ -67,6 +81,8 @@ class Settings(BaseSettings):
     def _check_llm_credentials(self) -> "Settings":
         if self.llm_provider == "openai" and not self.llm_api_key:
             raise ValueError("LLM_API_KEY is required when LLM_PROVIDER=openai")
+        if self.embedding_provider == "openai" and not self.llm_api_key:
+            raise ValueError("LLM_API_KEY is required when EMBEDDING_PROVIDER=openai")
         return self
 
     @property
@@ -74,6 +90,12 @@ class Settings(BaseSettings):
         if self.llm_provider == "auto":
             return "openai" if self.llm_api_key else "fake"
         return self.llm_provider
+
+    @property
+    def resolved_embedding_provider(self) -> Literal["openai", "hashing"]:
+        if self.embedding_provider == "auto":
+            return "openai" if self.llm_api_key else "hashing"
+        return self.embedding_provider
 
     @property
     def sqlalchemy_url(self) -> str:

@@ -1,11 +1,16 @@
+import os
 from collections.abc import AsyncIterator, Sequence
+from pathlib import Path
 
 import pytest
+from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, select, text
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import Session
 
+from alembic import command
 from app.core.config import Settings
 from app.db.base import Base
 from app.db.models import ChatRun
@@ -109,3 +114,34 @@ def app(settings: Settings, llm: StubLLM) -> FastAPI:
 def client(app: FastAPI):
     with TestClient(app) as c:
         yield c
+
+
+# ---------- PostgreSQL integration fixtures (pytest -m integration) ----------
+
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+CORPUS_DIR = BACKEND_DIR.parent / "datasets" / "documents"
+
+
+@pytest.fixture(scope="session")
+def migrated_db() -> str:
+    """A real Postgres + pgvector database, migrated from scratch to head."""
+    url = os.getenv("DATABASE_URL")
+    if not url:
+        pytest.skip("DATABASE_URL not set")
+    cfg = Config(str(BACKEND_DIR / "alembic.ini"))
+    cfg.set_main_option("script_location", str(BACKEND_DIR / "alembic"))
+    cfg.set_main_option("sqlalchemy.url", url)
+    command.downgrade(cfg, "base")
+    command.upgrade(cfg, "head")
+    return url
+
+
+@pytest.fixture
+async def pg_session(migrated_db) -> AsyncIterator[AsyncSession]:
+    """An async session on an empty knowledge base."""
+    engine = create_async_engine(migrated_db)
+    async with engine.begin() as conn:
+        await conn.execute(text("TRUNCATE documents, chunks, chat_runs CASCADE"))
+    async with AsyncSession(engine, expire_on_commit=False) as session:
+        yield session
+    await engine.dispose()
