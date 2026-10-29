@@ -1,134 +1,242 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { ApiError, type ChatResponse, checkReady, sendChat } from "./api";
+import {
+  ApiError,
+  type AssistantInfo,
+  checkReady,
+  getInfo,
+  type HistoryMessage,
+  streamChat,
+} from "./api";
+import { Composer } from "./components/Composer";
+import { EmptyState } from "./components/EmptyState";
+import { MenuIcon, PlusIcon } from "./components/Icons";
+import { MessageView } from "./components/MessageView";
+import { Sidebar } from "./components/Sidebar";
+import {
+  type Conversation,
+  loadConversations,
+  type Message,
+  newId,
+  saveConversations,
+  titleFrom,
+} from "./storage";
 
 type Backend = "checking" | "ready" | "degraded" | "offline";
 
-interface Turn {
-  prompt: string;
-  response?: ChatResponse;
-  error?: string;
+/** Completed turns before the new prompt, in the shape the API expects. */
+function toHistory(messages: Message[]): HistoryMessage[] {
+  return messages
+    .filter((m) => m.content && (m.role === "user" || m.status === "done"))
+    .map((m) => ({ role: m.role, content: m.content }));
 }
 
-const EXAMPLES = [
-  "What should a new employee do in their first week?",
-  "Summarize the risks of slow customer onboarding.",
-];
-
 export default function App() {
+  const [conversations, setConversations] = useState<Conversation[]>(loadConversations);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [info, setInfo] = useState<AssistantInfo | null>(null);
   const [backend, setBackend] = useState<Backend>("checking");
-  const [prompt, setPrompt] = useState("");
-  const [turns, setTurns] = useState<Turn[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const abortRef = useRef<AbortController | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const stickToBottom = useRef(true);
+
+  const active = conversations.find((c) => c.id === activeId) ?? null;
 
   useEffect(() => {
     checkReady()
       .then((r) => setBackend(r.status === "ok" ? "ready" : "degraded"))
       .catch(() => setBackend("offline"));
+    getInfo()
+      .then(setInfo)
+      .catch(() => setInfo(null));
   }, []);
 
-  async function submit(e?: FormEvent) {
-    e?.preventDefault();
-    const text = prompt.trim();
-    if (!text || loading) return;
+  useEffect(() => saveConversations(conversations), [conversations]);
 
-    setLoading(true);
-    setPrompt("");
-    setTurns((t) => [{ prompt: text }, ...t]);
+  // Follow the stream unless the user has scrolled up to read.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el && stickToBottom.current) el.scrollTop = el.scrollHeight;
+  }, [active?.messages]);
+
+  const updateMessage = useCallback(
+    (convId: string, msgId: string, fn: (m: Message) => Message) => {
+      setConversations((cs) =>
+        cs.map((c) =>
+          c.id === convId
+            ? { ...c, messages: c.messages.map((m) => (m.id === msgId ? fn(m) : m)) }
+            : c,
+        ),
+      );
+    },
+    [],
+  );
+
+  async function send(prompt: string, prior: Message[], conv: Conversation) {
+    const userMsg: Message = { id: newId(), role: "user", content: prompt, status: "done" };
+    const botMsg: Message = { id: newId(), role: "assistant", content: "", status: "streaming" };
+    const next: Conversation = {
+      ...conv,
+      title: conv.messages.length ? conv.title : titleFrom(prompt),
+      updatedAt: Date.now(),
+      messages: [...prior, userMsg, botMsg],
+    };
+    setConversations((cs) => [next, ...cs.filter((c) => c.id !== conv.id)]);
+    setActiveId(conv.id);
+    setBusy(true);
+    stickToBottom.current = true;
+
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
-      const response = await sendChat(text);
-      setTurns((t) => [{ prompt: text, response }, ...t.slice(1)]);
+      const result = await streamChat(
+        prompt,
+        toHistory(prior),
+        (text) => updateMessage(conv.id, botMsg.id, (m) => ({ ...m, content: m.content + text })),
+        controller.signal,
+      );
+      const { answer, ...meta } = result;
+      updateMessage(conv.id, botMsg.id, (m) => ({ ...m, content: answer, status: "done", meta }));
     } catch (err) {
-      const error = err instanceof ApiError ? err.message : "Could not reach the backend.";
-      setTurns((t) => [{ prompt: text, error }, ...t.slice(1)]);
+      if (controller.signal.aborted) {
+        updateMessage(conv.id, botMsg.id, (m) => ({ ...m, status: "stopped" }));
+      } else {
+        const error =
+          err instanceof ApiError
+            ? err.message
+            : "Couldn't reach the backend. Is it running on port 8000?";
+        updateMessage(conv.id, botMsg.id, (m) => ({ ...m, status: "error", error }));
+      }
     } finally {
-      setLoading(false);
+      abortRef.current = null;
+      setBusy(false);
     }
   }
 
+  function submit(text = input) {
+    const prompt = text.trim();
+    if (!prompt || busy) return;
+    setInput("");
+    const conv = active ?? { id: newId(), title: "", updatedAt: Date.now(), messages: [] };
+    void send(prompt, conv.messages, conv);
+  }
+
+  function retry() {
+    if (!active || busy) return;
+    const msgs = active.messages;
+    const lastUser = msgs.map((m) => m.role).lastIndexOf("user");
+    if (lastUser === -1) return;
+    void send(msgs[lastUser].content, msgs.slice(0, lastUser), active);
+  }
+
+  function newChat() {
+    abortRef.current?.abort();
+    setActiveId(null);
+    setInput("");
+    setSidebarOpen(false);
+  }
+
+  function deleteConversation(id: string) {
+    if (id === activeId) newChat();
+    setConversations((cs) => cs.filter((c) => c.id !== id));
+  }
+
+  const statusLabel =
+    backend === "ready"
+      ? (info?.model ?? "connected")
+      : backend === "checking"
+        ? "connecting…"
+        : backend === "degraded"
+          ? "database unavailable"
+          : "backend offline";
+
   return (
-    <div className="page">
-      <header className="header">
-        <div>
-          <h1>Enterprise Agentic Assistant</h1>
-          <p className="subtitle">Phase 1 · single-turn Q&amp;A through the FastAPI backend</p>
-        </div>
-        <span className={`pill pill-${backend}`}>
-          <span className="dot" /> backend {backend}
-        </span>
-      </header>
+    <div className="app">
+      <Sidebar
+        conversations={[...conversations].sort((a, b) => b.updatedAt - a.updatedAt)}
+        activeId={activeId}
+        open={sidebarOpen}
+        onSelect={(id) => {
+          setActiveId(id);
+          setSidebarOpen(false);
+        }}
+        onNew={newChat}
+        onDelete={deleteConversation}
+      />
+      {sidebarOpen && <div className="scrim" onClick={() => setSidebarOpen(false)} />}
 
-      <form className="composer" onSubmit={submit}>
-        <textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              void submit();
-            }
-          }}
-          placeholder="Ask a business question… (Enter to send, Shift+Enter for a new line)"
-          rows={3}
-          maxLength={8000}
-          aria-label="Prompt"
-        />
-        <div className="composer-row">
-          <div className="examples">
-            {EXAMPLES.map((ex) => (
-              <button type="button" key={ex} className="chip" onClick={() => setPrompt(ex)}>
-                {ex}
-              </button>
-            ))}
-          </div>
-          <button type="submit" className="send" disabled={loading || !prompt.trim()}>
-            {loading ? "Thinking…" : "Ask"}
+      <main className="main">
+        <header className="topbar">
+          <button
+            type="button"
+            className="icon-button mobile-only"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Open sidebar"
+          >
+            <MenuIcon />
           </button>
-        </div>
-      </form>
+          <div className="topbar-title">{active?.title || "New conversation"}</div>
+          <div className="topbar-right">
+            {info?.demo_mode && <span className="badge badge-warn">Demo mode</span>}
+            <span className={`status status-${backend}`} title={`Backend: ${backend}`}>
+              <span className="status-dot" />
+              {statusLabel}
+            </span>
+            <button
+              type="button"
+              className="icon-button mobile-only"
+              onClick={newChat}
+              aria-label="New chat"
+            >
+              <PlusIcon />
+            </button>
+          </div>
+        </header>
 
-      <main className="turns">
-        {turns.length === 0 && (
-          <p className="empty">
-            Answers appear here with their provider, model, latency, and run ID. Document
-            retrieval and citations arrive in Phase 2.
-          </p>
+        {info?.demo_mode && (
+          <div className="banner">
+            <strong>No language model connected.</strong> Answers are placeholders. Set{" "}
+            <code>OPENAI_API_KEY</code> (or <code>LLM_API_KEY</code> in <code>.env</code>) and
+            restart the backend.
+          </div>
         )}
-        {turns.map((turn, i) => (
-          <article key={turns.length - i} className="turn">
-            <p className="question">{turn.prompt}</p>
-            {!turn.response && !turn.error && <p className="pending">Waiting for the model…</p>}
-            {turn.error && <p className="error">{turn.error}</p>}
-            {turn.response && (
-              <>
-                <p className="answer">{turn.response.answer}</p>
-                <dl className="meta">
-                  <div>
-                    <dt>model</dt>
-                    <dd>
-                      {turn.response.provider}/{turn.response.model}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>latency</dt>
-                    <dd>{turn.response.latency_ms} ms</dd>
-                  </div>
-                  <div>
-                    <dt>tokens</dt>
-                    <dd>
-                      {turn.response.usage.prompt_tokens ?? "–"} in /{" "}
-                      {turn.response.usage.completion_tokens ?? "–"} out
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>run</dt>
-                    <dd className="mono">{turn.response.run_id.slice(0, 8)}</dd>
-                  </div>
-                </dl>
-              </>
-            )}
-          </article>
-        ))}
+
+        <div
+          className="scroll"
+          ref={scrollRef}
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+          }}
+        >
+          {active && active.messages.length > 0 ? (
+            <div className="thread">
+              {active.messages.map((m, i) => (
+                <MessageView
+                  key={m.id}
+                  message={m}
+                  isLast={i === active.messages.length - 1}
+                  onRetry={retry}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState onPick={(p) => submit(p)} />
+          )}
+        </div>
+
+        <Composer
+          value={input}
+          onChange={setInput}
+          onSubmit={() => submit()}
+          onStop={() => abortRef.current?.abort()}
+          busy={busy}
+          disabled={backend === "offline"}
+        />
       </main>
     </div>
   );
