@@ -234,7 +234,7 @@ enterprise-agentic-assistant/
 
 ## Getting started
 
-What works today (Phase 1): a FastAPI backend that answers prompts through a pluggable LLM client, records every run in PostgreSQL + pgvector, and serves a minimal React UI.
+What works today (Phase 1): a FastAPI backend that streams answers from a pluggable LLM client with conversation memory, records every run in PostgreSQL + pgvector, and serves a React chat UI (Markdown answers, conversation history, stop/regenerate, light/dark, mobile).
 
 ### Prerequisites
 
@@ -250,13 +250,13 @@ cd enterprise-agentic-assistant
 docker compose up --build
 ```
 
-This works with **zero configuration**. With no `.env`, the backend uses the offline `fake` LLM provider, which gives deterministic answers without an API key. Database migrations run automatically on startup.
+If `OPENAI_API_KEY` is exported in your shell, the backend uses it automatically (`LLM_PROVIDER=auto`, default model `gpt-4.1-mini`). Without a key it still starts, in **demo mode**: the UI shows a banner and answers explain how to connect a model. Database migrations run automatically on startup.
 
-To use a real model, create `.env` from the example and set your key:
+To configure the model explicitly, create `.env` from the example:
 
 ```bash
 cp .env.example .env
-# then edit .env:  LLM_PROVIDER=openai  and  LLM_API_KEY=sk-...
+# then edit .env:  LLM_API_KEY=sk-...  (optionally LLM_MODEL, LLM_BASE_URL)
 docker compose up --build
 ```
 
@@ -278,7 +278,9 @@ Interactive API docs: <http://localhost:8000/docs>
 | --- | --- |
 | `GET /health` | Liveness (process is up) |
 | `GET /health/ready` | Readiness (database reachable), `503` otherwise |
-| `POST /api/v1/chat` | `{"prompt": "..."}` → answer, provider, model, latency, token usage, `run_id` |
+| `GET /api/v1/info` | Serving provider and model, plus `demo_mode` |
+| `POST /api/v1/chat` | `{"prompt": "...", "history": [...]}` → answer, provider, model, latency, token usage, `run_id` |
+| `POST /api/v1/chat/stream` | Same request; Server-Sent Events: `delta` (text), then `done` (full response) or `error` |
 
 ### 3. Run the frontend
 
