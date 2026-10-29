@@ -1,5 +1,19 @@
 // Typed client for the backend API. Shapes mirror backend/app/schemas/chat.py.
 
+export type RetrievalStatus = "used" | "no_results" | "disabled" | "failed";
+
+export interface Source {
+  index: number;
+  chunk_id: string;
+  doc_key: string;
+  title: string;
+  section: string;
+  snippet: string;
+  source_path: string;
+  doc_type: string | null;
+  score: number;
+}
+
 export interface ChatResponse {
   run_id: string;
   answer: string;
@@ -7,6 +21,34 @@ export interface ChatResponse {
   model: string;
   latency_ms: number;
   usage: { prompt_tokens: number | null; completion_tokens: number | null };
+  retrieval: RetrievalStatus;
+  sources: Source[];
+  citations: number[];
+  invalid_citations: number;
+}
+
+export interface DocumentSummary {
+  id: string;
+  doc_key: string;
+  title: string;
+  doc_type: string | null;
+  owner: string | null;
+  version: string | null;
+  source_updated: string | null;
+  source_path: string;
+  acl: string[];
+  embedding_model: string;
+  chunk_count: number;
+  updated_at: string;
+}
+
+export interface ChunkDetail {
+  chunk_id: string;
+  chunk_index: number;
+  section: string;
+  content: string;
+  token_count: number;
+  document: DocumentSummary;
 }
 
 export interface HistoryMessage {
@@ -58,20 +100,48 @@ export async function checkReady(): Promise<ReadyResponse> {
   return resp.json();
 }
 
+export async function listDocuments(): Promise<DocumentSummary[]> {
+  const resp = await fetch("/api/v1/documents");
+  if (!resp.ok) throw await parseError(resp);
+  return (await resp.json()).documents;
+}
+
+export async function uploadDocument(
+  file: File,
+): Promise<{ status: "created" | "updated" | "unchanged"; document: DocumentSummary }> {
+  const form = new FormData();
+  form.append("file", file);
+  const resp = await fetch("/api/v1/documents", { method: "POST", body: form });
+  if (!resp.ok) throw await parseError(resp);
+  return resp.json();
+}
+
+export async function getChunk(chunkId: string): Promise<ChunkDetail> {
+  const resp = await fetch(`/api/v1/chunks/${encodeURIComponent(chunkId)}`);
+  if (!resp.ok) throw await parseError(resp);
+  return resp.json();
+}
+
+export interface StreamHandlers {
+  onSources?: (retrieval: RetrievalStatus, sources: Source[]) => void;
+  onDelta: (text: string) => void;
+}
+
 /**
- * Streams an answer over Server-Sent Events. Calls `onDelta` for each text fragment
- * and resolves with the final response once the server sends `done`.
+ * Streams an answer over Server-Sent Events: `sources` first, then `delta` text
+ * fragments. Resolves with the final, citation-checked response on `done`.
  */
 export async function streamChat(
   prompt: string,
   history: HistoryMessage[],
-  onDelta: (text: string) => void,
+  useKnowledgeBase: boolean,
+  handlers: StreamHandlers,
   signal?: AbortSignal,
 ): Promise<ChatResponse> {
   const resp = await fetch("/api/v1/chat/stream", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt, history }),
+    body: JSON.stringify({ prompt, history, use_knowledge_base: useKnowledgeBase }),
     signal,
   });
   if (!resp.ok || !resp.body) throw await parseError(resp);
@@ -95,7 +165,8 @@ export async function streamChat(
         else if (line.startsWith("data: ")) data += line.slice(6);
       }
       const payload = JSON.parse(data);
-      if (event === "delta") onDelta(payload.text);
+      if (event === "sources") handlers.onSources?.(payload.retrieval, payload.sources);
+      else if (event === "delta") handlers.onDelta(payload.text);
       else if (event === "done") return payload as ChatResponse;
       else if (event === "error") throw new ApiError(payload.status, payload.detail);
     }

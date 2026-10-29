@@ -6,13 +6,16 @@ import {
   checkReady,
   getInfo,
   type HistoryMessage,
+  type Source,
   streamChat,
 } from "./api";
 import { Composer } from "./components/Composer";
 import { EmptyState } from "./components/EmptyState";
 import { MenuIcon, PlusIcon } from "./components/Icons";
+import { KnowledgeBase } from "./components/KnowledgeBase";
 import { MessageView } from "./components/MessageView";
 import { Sidebar } from "./components/Sidebar";
+import { SourcePanel } from "./components/SourcePanel";
 import {
   type Conversation,
   loadConversations,
@@ -39,6 +42,9 @@ export default function App() {
   const [info, setInfo] = useState<AssistantInfo | null>(null);
   const [backend, setBackend] = useState<Backend>("checking");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [useKnowledgeBase, setUseKnowledgeBase] = useState(true);
+  const [openSource, setOpenSource] = useState<Source | null>(null);
+  const [kbOpen, setKbOpen] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -96,11 +102,25 @@ export default function App() {
       const result = await streamChat(
         prompt,
         toHistory(prior),
-        (text) => updateMessage(conv.id, botMsg.id, (m) => ({ ...m, content: m.content + text })),
+        useKnowledgeBase,
+        {
+          onSources: (retrieval, sources) =>
+            updateMessage(conv.id, botMsg.id, (m) => ({ ...m, retrieval, sources })),
+          onDelta: (text) =>
+            updateMessage(conv.id, botMsg.id, (m) => ({ ...m, content: m.content + text })),
+        },
         controller.signal,
       );
-      const { answer, ...meta } = result;
-      updateMessage(conv.id, botMsg.id, (m) => ({ ...m, content: answer, status: "done", meta }));
+      const { answer, sources, citations, retrieval, ...meta } = result;
+      updateMessage(conv.id, botMsg.id, (m) => ({
+        ...m,
+        content: answer, // citation-checked final text replaces the streamed draft
+        status: "done",
+        retrieval,
+        sources,
+        citations,
+        meta,
+      }));
     } catch (err) {
       if (controller.signal.aborted) {
         updateMessage(conv.id, botMsg.id, (m) => ({ ...m, status: "stopped" }));
@@ -166,6 +186,10 @@ export default function App() {
         }}
         onNew={newChat}
         onDelete={deleteConversation}
+        onOpenKnowledgeBase={() => {
+          setKbOpen(true);
+          setSidebarOpen(false);
+        }}
       />
       {sidebarOpen && <div className="scrim" onClick={() => setSidebarOpen(false)} />}
 
@@ -221,6 +245,7 @@ export default function App() {
                   message={m}
                   isLast={i === active.messages.length - 1}
                   onRetry={retry}
+                  onOpenSource={setOpenSource}
                 />
               ))}
             </div>
@@ -236,8 +261,13 @@ export default function App() {
           onStop={() => abortRef.current?.abort()}
           busy={busy}
           disabled={backend === "offline"}
+          useKnowledgeBase={useKnowledgeBase}
+          onToggleKnowledgeBase={() => setUseKnowledgeBase((v) => !v)}
         />
       </main>
+
+      <SourcePanel source={openSource} onClose={() => setOpenSource(null)} />
+      <KnowledgeBase open={kbOpen} onClose={() => setKbOpen(false)} />
     </div>
   );
 }

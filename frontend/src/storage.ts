@@ -1,7 +1,7 @@
 // Conversations are kept in this browser only (a per-viewer convenience).
 // Server-side conversation storage arrives with the agent runtime in Phase 3.
 
-import type { ChatResponse } from "./api";
+import type { ChatResponse, RetrievalStatus, Source } from "./api";
 
 export interface Message {
   id: string;
@@ -9,7 +9,10 @@ export interface Message {
   content: string;
   status?: "streaming" | "done" | "error" | "stopped";
   error?: string;
-  meta?: Omit<ChatResponse, "answer">;
+  retrieval?: RetrievalStatus;
+  sources?: Source[];
+  citations?: number[];
+  meta?: Omit<ChatResponse, "answer" | "sources" | "citations" | "retrieval">;
 }
 
 export interface Conversation {
