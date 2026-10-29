@@ -62,7 +62,8 @@ def db_path(tmp_path):
     """
     path = tmp_path / "test.db"
     engine = create_engine(f"sqlite:///{path}")
-    Base.metadata.create_all(engine)
+    # Only tables that work on SQLite; knowledge-base tables need Postgres (integration tests).
+    Base.metadata.create_all(engine, tables=[ChatRun.__table__])
     engine.dispose()
     return path
 
