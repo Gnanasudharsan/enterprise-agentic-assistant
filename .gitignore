@@ -40,3 +40,6 @@ datasets/**/raw_uploads/
 
 # --- Local tooling ---
 .claude/
+
+# Local issue tracker (actions demo)
+backend/data/
