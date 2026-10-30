@@ -2,6 +2,7 @@
 // are also recorded server-side, with their full trace (GET /api/v1/agent/runs/{id}).
 
 import type {
+  AgentAction,
   ChatResponse,
   Plan,
   RetrievalStatus,
@@ -32,6 +33,10 @@ export interface AgentProgress {
   invalidCitations?: number;
   /** The run failed after checkpointing; it can be resumed. */
   resumable?: boolean;
+  /** Actions the agent proposed (latest state of each). */
+  actions?: AgentAction[];
+  /** The run is paused until a human decides on its proposed action. */
+  awaitingApproval?: boolean;
 }
 
 export interface Message {

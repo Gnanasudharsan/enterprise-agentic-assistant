@@ -192,7 +192,7 @@ export async function streamChat(
 // ---------------------------------------------------------------- multi-agent runs
 // Shapes mirror backend/app/schemas/agent.py.
 
-export type AgentName = "research" | "data";
+export type AgentName = "research" | "data" | "action";
 
 export interface PlanStep {
   id: string;
@@ -241,9 +241,52 @@ export interface TraceEvent {
   detail: Record<string, unknown>;
 }
 
+export type ActionStatus = "proposed" | "approved" | "rejected" | "executing" | "executed" | "failed";
+
+export interface ActionAuditEvent {
+  event: string;
+  actor: string;
+  at: string | null;
+  detail: Record<string, any>;
+}
+
+export interface IssueArguments {
+  title: string;
+  body: string;
+  labels?: string[];
+  priority?: string;
+}
+
+export interface AgentAction {
+  id: string;
+  run_id: string;
+  server: string;
+  tool: string;
+  arguments: IssueArguments & Record<string, unknown>;
+  rationale: string | null;
+  status: ActionStatus;
+  requested_by: string;
+  decided_by: string | null;
+  decided_at: string | null;
+  executed_at: string | null;
+  result: { key?: string; url?: string; title?: string } | null;
+  error: string | null;
+  created_at: string | null;
+  audit: ActionAuditEvent[];
+}
+
+export interface ToolInfo {
+  name: string;
+  server: string;
+  description: string;
+  input_schema: { properties?: Record<string, any>; required?: string[] };
+  requires_approval: boolean;
+  permitted: boolean;
+}
+
 export interface AgentRun {
   run_id: string;
-  status: "running" | "succeeded" | "failed";
+  status: "running" | "succeeded" | "failed" | "needs_approval";
   created_at: string | null;
   question: string;
   answer: string | null;
@@ -256,12 +299,13 @@ export interface AgentRun {
   citations: { sources: number[]; tables: number[] };
   invalid_citations: number;
   trace: TraceEvent[];
+  actions: AgentAction[];
   error_type: string | null;
 }
 
 /** Live progress of one node or plan step, as streamed. */
 export interface StepEvent {
-  node: "supervisor" | "research" | "data" | "analyst";
+  node: "supervisor" | "research" | "data" | "analyst" | "action";
   step_id?: string;
   status: "running" | "succeeded" | "fallback" | "failed";
   goal?: string;
@@ -286,6 +330,7 @@ export interface AgentHandlers {
   onSql?: (sql: SqlEvent) => void;
   onEvidence?: (sources: Source[], tables: TableResult[]) => void;
   onAnswerReset?: () => void;
+  onAction?: (action: AgentAction) => void;
   onDelta: (text: string) => void;
 }
 
@@ -320,6 +365,9 @@ async function driveAgent(resp: Response, handlers: AgentHandlers): Promise<Agen
         break;
       case "answer_reset":
         handlers.onAnswerReset?.();
+        break;
+      case "action":
+        handlers.onAction?.(p.action);
         break;
       case "delta":
         handlers.onDelta(p.text);
@@ -365,6 +413,32 @@ export async function resumeAgent(
 
 export async function getAgentRun(runId: string): Promise<AgentRun> {
   const resp = await fetch(`/api/v1/agent/runs/${encodeURIComponent(runId)}`);
+  if (!resp.ok) throw await parseError(resp);
+  return resp.json();
+}
+
+/** Record a human decision on a proposed action, then follow the resumed run. */
+export async function decideAction(
+  runId: string,
+  actionId: string,
+  body: { decision: "approve" | "reject"; arguments?: Record<string, unknown>; comment?: string },
+  handlers: AgentHandlers,
+): Promise<AgentRun> {
+  const resp = await fetch(
+    `/api/v1/agent/runs/${encodeURIComponent(runId)}/actions/${encodeURIComponent(actionId)}/decision`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+  );
+  return driveAgent(resp, handlers);
+}
+
+export async function listActions(): Promise<AgentAction[]> {
+  const resp = await fetch("/api/v1/actions?limit=100");
+  if (!resp.ok) throw await parseError(resp);
+  return resp.json();
+}
+
+export async function listTools(): Promise<ToolInfo[]> {
+  const resp = await fetch("/api/v1/tools");
   if (!resp.ok) throw await parseError(resp);
   return resp.json();
 }

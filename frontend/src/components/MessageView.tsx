@@ -2,8 +2,9 @@ import { useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import type { Source, TableResult } from "../api";
+import type { IssueArguments, Source, TableResult, ToolInfo } from "../api";
 import type { Message } from "../storage";
+import { ActionCard } from "./ActionCard";
 import { AgentSteps } from "./Agent";
 import { DataCard } from "./DataCard";
 import { CheckIcon, CopyIcon, LogoMark, RetryIcon } from "./Icons";
@@ -16,6 +17,9 @@ interface Props {
   onOpenSource: (source: Source) => void;
   onOpenTrace: (runId: string) => void;
   onResume: () => void;
+  onDecide: (actionId: string, decision: "approve" | "reject", args?: IssueArguments) => void;
+  tools: ToolInfo[];
+  busy: boolean;
   onCopied: () => void;
 }
 
@@ -64,6 +68,9 @@ export function MessageView({
   onOpenSource,
   onOpenTrace,
   onResume,
+  onDecide,
+  tools,
+  busy,
   onCopied,
 }: Props) {
   if (message.role === "user") {
@@ -158,6 +165,16 @@ export function MessageView({
             ))}
           </div>
         )}
+
+        {agent?.actions?.map((a) => (
+          <ActionCard
+            key={a.id}
+            action={a}
+            tool={tools.find((t) => t.name === a.tool)}
+            busy={busy}
+            onDecide={(decision, args) => onDecide(a.id, decision, args)}
+          />
+        ))}
 
         {message.status === "error" && (
           <div className="msg-error">

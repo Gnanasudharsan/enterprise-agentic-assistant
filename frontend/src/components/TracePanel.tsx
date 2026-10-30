@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
 
 import { type AgentRun, getAgentRun, type TraceEvent } from "../api";
-import { BookIcon, CloseIcon, DatabaseIcon, PenIcon, RouteIcon } from "./Icons";
+import { BookIcon, CloseIcon, DatabaseIcon, PenIcon, RouteIcon, TicketIcon } from "./Icons";
 
 const NODE = {
   supervisor: { label: "Supervisor", icon: RouteIcon },
   research: { label: "Docs agent", icon: BookIcon },
   data: { label: "Data agent", icon: DatabaseIcon },
   analyst: { label: "Analyst", icon: PenIcon },
+  action: { label: "Action agent", icon: TicketIcon },
 } as const;
+
+const AGENT_NAMES = { research: "Docs agent", data: "Data agent", action: "Action agent" } as const;
 
 function Detail({ event }: { event: TraceEvent }) {
   const d = event.detail as Record<string, any>;
@@ -21,6 +24,8 @@ function Detail({ event }: { event: TraceEvent }) {
   if (d.problems?.length) items.push(["Problems", d.problems.join("; ")]);
   if (d.adjustments?.length) items.push(["Plan rules applied", d.adjustments.join("; ")]);
   if (d.used_findings) items.push(["Used findings", "Yes, from the docs agent"]);
+  if (d.tool) items.push(["Tool", String(d.tool)]);
+  if (d.duplicates !== undefined) items.push(["Possible duplicates found", String(d.duplicates)]);
   if (d.invalid_citations !== undefined) items.push(["Invalid citations removed", String(d.invalid_citations)]);
   if (d.prompt_tokens) items.push(["Tokens", `${d.prompt_tokens} in → ${d.completion_tokens} out`]);
   return (
@@ -108,7 +113,7 @@ export function TracePanel({ runId, onClose }: { runId: string | null; onClose: 
                 {run.plan.steps.map((s) => (
                   <li key={s.id}>
                     <span className="mono">{s.id}</span>
-                    <span className="agent-tag">{s.agent === "data" ? "Data agent" : "Docs agent"}</span>
+                    <span className="agent-tag">{AGENT_NAMES[s.agent]}</span>
                     <span>{s.goal}</span>
                     {s.depends_on?.length ? (
                       <span className="trace-after mono">after {s.depends_on.join(", ")}</span>
