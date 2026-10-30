@@ -114,3 +114,35 @@ class Chunk(Base):
             postgresql_ops={"embedding": "vector_cosine_ops"},
         ),
     )
+
+
+class AgentRun(Base):
+    """One row per multi-agent run: the plan, the execution trace, and the outcome.
+
+    The id doubles as the LangGraph thread id, so a run's checkpoints can be found (and an
+    interrupted run resumed) from this row.
+    """
+
+    __tablename__ = "agent_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    status: Mapped[str] = mapped_column(String(16))  # "running" | "succeeded" | "failed"
+    question: Mapped[str] = mapped_column(Text)
+    provider: Mapped[str] = mapped_column(String(32))
+    model: Mapped[str | None] = mapped_column(String(128))
+    plan: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    # Ordered events: node, status, timing, and a summary of what each agent did.
+    trace: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON)
+    answer: Mapped[str | None] = mapped_column(Text)
+    sources: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON)
+    tables: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON)
+    # Validated citations: {"sources": [S#...], "tables": [T#...], "invalid": n}
+    citations: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    error_type: Mapped[str | None] = mapped_column(String(64))
+    latency_ms: Mapped[int | None] = mapped_column(Integer)
