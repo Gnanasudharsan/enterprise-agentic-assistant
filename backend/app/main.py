@@ -2,13 +2,17 @@
 
 import logging
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
-from app.api.routes import chat, documents, health, search
+from app.agents.graph import build_graph, open_checkpointer
+from app.agents.nodes import AgentDeps
+from app.agents.service import AgentService
+from app.analytics.sql import SQLExecutor
+from app.api.routes import agent, chat, documents, health, search
 from app.core.config import Settings, get_settings
 from app.db.session import build_engine, build_sessionmaker
 from app.llm.factory import build_llm_client
@@ -29,12 +33,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.retriever = build_retriever(settings, embedder, app.state.llm_client)
         app.state.engine = build_engine(settings.sqlalchemy_url)
         app.state.sessionmaker = build_sessionmaker(app.state.engine)
-        try:
-            yield
-        finally:
-            await app.state.llm_client.aclose()
-            await app.state.retriever.embedder.aclose()
-            await app.state.engine.dispose()
+        if getattr(app.state, "sql_executor", None) is None:
+            app.state.sql_executor = SQLExecutor(
+                app.state.engine, timeout_ms=settings.sql_timeout_ms, max_rows=settings.sql_max_rows
+            )
+        async with AsyncExitStack() as stack:
+            checkpointer = await stack.enter_async_context(open_checkpointer(settings))
+            deps = AgentDeps(
+                llm=app.state.llm_client,
+                retriever=app.state.retriever,
+                sessionmaker=app.state.sessionmaker,
+                sql=app.state.sql_executor,
+                settings=settings,
+            )
+            app.state.agent_service = AgentService(
+                build_graph(deps, checkpointer), app.state.sessionmaker, app.state.llm_client
+            )
+            try:
+                yield
+            finally:
+                await app.state.llm_client.aclose()
+                await app.state.retriever.embedder.aclose()
+                await app.state.engine.dispose()
 
     app = FastAPI(title=settings.app_name, version=__version__, lifespan=lifespan)
     app.state.settings = settings
@@ -50,6 +70,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(chat.router)
     app.include_router(search.router)
     app.include_router(documents.router)
+    app.include_router(agent.router)
     return app
 
 

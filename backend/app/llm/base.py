@@ -44,7 +44,12 @@ class LLMClient(Protocol):
     provider: str
     model: str
 
-    async def complete(self, messages: Sequence[ChatMessage]) -> LLMResult: ...
+    async def complete(
+        self, messages: Sequence[ChatMessage], *, json_mode: bool = False
+    ) -> LLMResult:
+        """`json_mode` asks the provider to return a single JSON object (the prompt must
+        still describe the expected shape). Callers validate the result themselves."""
+        ...
 
     def stream(self, messages: Sequence[ChatMessage]) -> AsyncIterator[StreamDelta | LLMResult]:
         """Yield `StreamDelta`s as text is generated, then exactly one final `LLMResult`."""

@@ -70,6 +70,16 @@ class Settings(BaseSettings):
     user_groups: list[str] = ["all-employees"]
     documents_dir: str = "../datasets/documents"
 
+    # --- Agents (multi-agent orchestration) ---
+    agent_max_plan_steps: int = Field(default=4, ge=1, le=6)
+    agent_max_plan_attempts: int = Field(default=2, ge=1, le=4)  # planner JSON repair
+    agent_max_sql_attempts: int = Field(default=3, ge=1, le=5)  # SQL repair loop per step
+    # "postgres" checkpoints every graph step (interrupted runs can be resumed);
+    # "memory" keeps checkpoints in-process (tests, demos without a database).
+    agent_checkpointer: Literal["postgres", "memory"] = "postgres"
+    sql_timeout_ms: int = Field(default=5000, ge=100, le=60000)
+    sql_max_rows: int = Field(default=200, ge=1, le=5000)
+
     # --- Database ---
     database_url: str | None = None
     postgres_user: str = "assistant"
@@ -97,6 +107,11 @@ class Settings(BaseSettings):
         if self.embedding_provider == "auto":
             return "openai" if self.llm_api_key else "hashing"
         return self.embedding_provider
+
+    @property
+    def psycopg_url(self) -> str:
+        """The same database as a libpq URL, for the LangGraph checkpointer (psycopg)."""
+        return self.sqlalchemy_url.replace("postgresql+asyncpg://", "postgresql://", 1)
 
     @property
     def sqlalchemy_url(self) -> str:

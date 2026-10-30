@@ -42,9 +42,15 @@ class OpenAIChatClient:
             "max_tokens": self._max_output_tokens,
         }
 
-    async def complete(self, messages: Sequence[ChatMessage]) -> LLMResult:
+    async def complete(
+        self, messages: Sequence[ChatMessage], *, json_mode: bool = False
+    ) -> LLMResult:
+        args = self._request_args(messages)
+        if json_mode:
+            args["response_format"] = {"type": "json_object"}
+            args["temperature"] = 0.0  # plans and SQL should be reproducible
         try:
-            resp = await self._client.chat.completions.create(**self._request_args(messages))
+            resp = await self._client.chat.completions.create(**args)
         except openai.APITimeoutError as exc:
             raise LLMTimeoutError("LLM request timed out") from exc
         except openai.APIError as exc:

@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.service import AgentService
 from app.core.config import Settings
 from app.llm.base import LLMClient
 from app.rag.retrieval import Retriever
@@ -28,3 +29,7 @@ def get_retriever(request: Request) -> Retriever:
 def get_user_groups(request: Request) -> list[str]:
     """The caller's access groups. Single demo identity until authentication lands."""
     return request.app.state.settings.user_groups
+
+
+def get_agent_service(request: Request) -> AgentService:
+    return request.app.state.agent_service

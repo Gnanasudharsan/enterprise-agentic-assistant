@@ -12,9 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import Session
 
 from alembic import command
+from app.analytics.sql import QueryResult
 from app.core.config import Settings
 from app.db.base import Base
-from app.db.models import ChatRun
+from app.db.models import AgentRun, ChatRun
 from app.llm.base import ChatMessage, LLMResult, StreamDelta
 from app.main import create_app
 from app.rag.embeddings import HashingEmbedder
@@ -33,12 +34,17 @@ class StubLLM:
         )
         self.error: Exception | None = None
         self.calls: list[list[ChatMessage]] = []
+        self.json_results: list[str] = []  # returned in order by json_mode calls
         self.closed = False
 
-    async def complete(self, messages: Sequence[ChatMessage]) -> LLMResult:
+    async def complete(
+        self, messages: Sequence[ChatMessage], *, json_mode: bool = False
+    ) -> LLMResult:
         self.calls.append(list(messages))
         if self.error:
             raise self.error
+        if json_mode and self.json_results:
+            return LLMResult(content=self.json_results.pop(0), model=self.model)
         return self.result
 
     async def stream(
@@ -71,6 +77,26 @@ class StubRetriever:
         return self.chunks
 
 
+class StubSQL:
+    """Stands in for SQLExecutor: records queries and returns a canned result."""
+
+    def __init__(self) -> None:
+        self.result = QueryResult(
+            columns=["month", "kyb_tickets"],
+            rows=[["2026-08", 9], ["2026-09", 118], ["2026-10", 14]],
+            truncated=False,
+            elapsed_ms=3,
+        )
+        self.error: Exception | None = None
+        self.queries: list[str] = []
+
+    async def run(self, sql: str) -> QueryResult:
+        self.queries.append(sql)
+        if self.error:
+            raise self.error
+        return self.result
+
+
 def make_chunk(doc_key: str, section: str, content: str) -> RetrievedChunk:
     return RetrievedChunk(
         chunk_id=uuid.uuid4(),
@@ -100,7 +126,7 @@ def db_path(tmp_path):
     path = tmp_path / "test.db"
     engine = create_engine(f"sqlite:///{path}")
     # Only tables that work on SQLite; knowledge-base tables need Postgres (integration tests).
-    Base.metadata.create_all(engine, tables=[ChatRun.__table__])
+    Base.metadata.create_all(engine, tables=[ChatRun.__table__, AgentRun.__table__])
     engine.dispose()
     return path
 
@@ -113,6 +139,7 @@ def settings(db_path) -> Settings:
         app_env="test",
         llm_provider="fake",
         database_url=f"sqlite+aiosqlite:///{db_path}",
+        agent_checkpointer="memory",
     )
 
 
@@ -141,10 +168,16 @@ def retriever() -> StubRetriever:
 
 
 @pytest.fixture
-def app(settings: Settings, llm: StubLLM, retriever: StubRetriever) -> FastAPI:
+def sql() -> StubSQL:
+    return StubSQL()
+
+
+@pytest.fixture
+def app(settings: Settings, llm: StubLLM, retriever: StubRetriever, sql: StubSQL) -> FastAPI:
     app = create_app(settings)
     app.state.llm_client = llm
     app.state.retriever = retriever
+    app.state.sql_executor = sql
     return app
 
 
@@ -179,7 +212,7 @@ async def pg_session(migrated_db) -> AsyncIterator[AsyncSession]:
     """An async session on an empty knowledge base."""
     engine = create_async_engine(migrated_db)
     async with engine.begin() as conn:
-        await conn.execute(text("TRUNCATE documents, chunks, chat_runs CASCADE"))
+        await conn.execute(text("TRUNCATE documents, chunks, chat_runs, agent_runs CASCADE"))
     async with AsyncSession(engine, expire_on_commit=False) as session:
         yield session
     await engine.dispose()

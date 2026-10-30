@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator, Sequence
 
 from app.llm.base import ChatMessage, LLMResult, StreamDelta
 
+_TABLE = re.compile(r'<table id="(T\d+)" title="([^"]*)" rows="(\d+)')
 _SOURCE = re.compile(
     r'<source id="(S\d+)" doc="([^"]*)" location="([^"]*)">\n(.*?)\n</source>', re.S
 )
@@ -48,6 +49,15 @@ class FakeLLMClient:
             )
         else:
             retrieval = "No knowledge-base passages were provided for this question."
+        tables = [
+            t for msg in messages if msg.role == "system" for t in _TABLE.findall(msg.content)
+        ]
+        if tables:
+            tid, title, rows = tables[0]
+            retrieval += (
+                f"\n\nThe data agent also ran a reviewed query, **{title}** ({rows} rows) [{tid}]. "
+                "See the table and chart with this answer."
+            )
         answer = DEMO_ANSWER.format(prompt=prompt.replace("\n", "\n> "), retrieval=retrieval)
         return LLMResult(
             content=answer,
@@ -56,7 +66,12 @@ class FakeLLMClient:
             completion_tokens=len(answer.split()),
         )
 
-    async def complete(self, messages: Sequence[ChatMessage]) -> LLMResult:
+    async def complete(
+        self, messages: Sequence[ChatMessage], *, json_mode: bool = False
+    ) -> LLMResult:
+        if json_mode:
+            # No model to plan or write SQL: callers fall back to deterministic behavior.
+            return LLMResult(content="{}", model=self.model, prompt_tokens=0, completion_tokens=0)
         return self._answer(messages)
 
     async def stream(
