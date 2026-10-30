@@ -87,6 +87,19 @@ jobs:
             -d '{"prompt":"How many kyb verification tickets did we get per month?"}' > run.json
           python3 -c "import json; d=json.load(open('run.json')); t=d['tables'][0]; print(d['status'], t['title'], t['rows']); assert d['status']=='succeeded', d; assert [r[1] for r in t['rows'] if r[0]=='2026-09']==[118], t; assert d['citations']['tables']==[1], d['citations']"
           curl -sf localhost:8000/api/v1/agent/runs/$(python3 -c "import json; print(json.load(open('run.json'))['run_id'])") > /dev/null
+      - name: Approved action (proposal pauses the run; MCP tracker creates the issue on approval)
+        run: |
+          curl -sf -X POST localhost:8000/api/v1/agent/run \
+            -H 'content-type: application/json' \
+            -d '{"prompt":"What caused INC-204? Create a follow-up issue for the async queue."}' > act.json
+          python3 -c "import json; d=json.load(open('act.json')); assert d['status']=='needs_approval', d['trace']; assert d['actions'][0]['status']=='proposed'"
+          RUN=$(python3 -c "import json; print(json.load(open('act.json'))['run_id'])")
+          ACTION=$(python3 -c "import json; print(json.load(open('act.json'))['actions'][0]['id'])")
+          curl -sfN -X POST "localhost:8000/api/v1/agent/runs/$RUN/actions/$ACTION/decision" \
+            -H 'content-type: application/json' -d '{"decision":"approve"}' > /dev/null
+          curl -sf "localhost:8000/api/v1/actions/$ACTION" > done.json
+          python3 -c "import json; a=json.load(open('done.json')); print(a['status'], a['result']); assert a['status']=='executed', a; assert [e['event'] for e in a['audit']]==['proposed','approved','executing','executed']"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST "localhost:8000/api/v1/agent/runs/$RUN/actions/$ACTION/decision" -H 'content-type: application/json' -d '{"decision":"approve"}')" = 409
       - if: always()
         run: docker compose down -v
 

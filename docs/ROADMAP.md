@@ -66,18 +66,21 @@ Legend: ✅ done · ⏳ in progress · ⬜ planned
 
 **Acceptance (verified):** asking "Why did onboarding slow down in September?" plans research + data, cites the incident report and a query result in one answer, shows the SQL and chart, and the run's trace is retrievable; a run whose analyst fails resumes without re-planning or re-querying (tested).
 
-## Phase 4 — MCP & controlled actions ⏳
+## Phase 4 — MCP & controlled actions ✅
 
 **Deliverable:** The assistant drafts a task, requests approval, and creates it only after authorization.
 
-- [ ] Typed tool schemas
-- [ ] One real integration (e.g. GitHub Issues) through an MCP adapter
-- [ ] Action preview and human-in-the-loop approval (graph interrupt)
-- [ ] Backend-enforced permission check, independent of the LLM
-- [ ] Audit log of proposed, approved, rejected, and executed actions
-- [ ] Least-privilege token scopes, with no credentials in prompts
+- [x] Typed tool schemas: the tracker MCP server declares `create_issue` / `search_issues` with JSON Schema (enums, lengths, limits) and read-only annotations; drafts are validated client-side (jsonschema) and server-side
+- [x] One real integration through MCP: an issue-tracker MCP server over stdio, with a local SQLite backend (default, offline) and a GitHub Issues backend
+- [x] Action preview and human-in-the-loop approval: the action agent drafts after the answer, the graph `interrupt`s, and the UI approves / edits / rejects; the decision resumes the checkpointed run
+- [x] Backend-enforced permission check, independent of the LLM: allow-listed tools per access group, checked at proposal, at approval, and before execution; approvals bound to an argument hash; at-most-once execution
+- [x] Audit log of proposed, edited, approved, rejected, denied, executing, executed, and failed actions (`action_audit`, `GET /api/v1/actions`, actions panel)
+- [x] Least-privilege token scopes, with no credentials in prompts: the MCP subprocess receives only tracker settings; GitHub uses a fine-grained single-repo token with issue access only
+- [x] Unauthorized-action test suite: 15 scenarios, 0 unauthorized executions
 
-## Phase 5 — Evaluation, reliability & security ⬜
+**Acceptance (verified):** "What caused INC-204? Create a follow-up issue…" answers with citations, drafts an issue (with a duplicate check), pauses as `needs_approval`, creates the issue only after approval (offline in CI via the local tracker), and records the full audit trail; a second approval is refused.
+
+## Phase 5 — Evaluation, reliability & security ⏳
 
 **Deliverable:** Repeatable evaluation reports comparing baseline RAG with the agentic system.
 
