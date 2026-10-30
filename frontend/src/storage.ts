@@ -1,7 +1,38 @@
-// Conversations are kept in this browser only (a per-viewer convenience).
-// Server-side conversation storage arrives with the agent runtime in Phase 3.
+// Conversations are kept in this browser only (a per-viewer convenience). Agent runs
+// are also recorded server-side, with their full trace (GET /api/v1/agent/runs/{id}).
 
-import type { ChatResponse, RetrievalStatus, Source } from "./api";
+import type {
+  ChatResponse,
+  Plan,
+  RetrievalStatus,
+  Source,
+  SqlEvent,
+  StepEvent,
+  TableResult,
+  TraceEvent,
+} from "./api";
+
+/** agent: plan + documents + data. docs: grounded chat. general: no company data. */
+export type Mode = "agent" | "docs" | "general";
+
+/** What the agents did for one answer: streamed live, then replaced by the final run. */
+export interface AgentProgress {
+  runId?: string;
+  plan?: Plan;
+  planStatus?: string;
+  /** Latest event per node ("supervisor", "analyst") or plan step id ("s1"). */
+  steps: Record<string, StepEvent>;
+  /** Latest SQL event per data step. */
+  sql: Record<string, SqlEvent>;
+  tables?: TableResult[];
+  tableCitations?: number[];
+  trace?: TraceEvent[];
+  latencyMs?: number;
+  model?: string | null;
+  invalidCitations?: number;
+  /** The run failed after checkpointing; it can be resumed. */
+  resumable?: boolean;
+}
 
 export interface Message {
   id: string;
@@ -11,6 +42,8 @@ export interface Message {
   error?: string;
   /** Whether this answer was asked with company documents on (assistant messages). */
   kb?: boolean;
+  mode?: Mode;
+  agent?: AgentProgress;
   retrieval?: RetrievalStatus;
   sources?: Source[];
   citations?: number[];

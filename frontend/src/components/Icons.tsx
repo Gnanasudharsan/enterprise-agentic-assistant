@@ -214,3 +214,44 @@ export const CommandIcon = (p: IconProps) => (
     <path d="M9 6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3z" />
   </Icon>
 );
+
+export const DatabaseIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <ellipse cx="12" cy="5.5" rx="7" ry="2.8" />
+    <path d="M5 5.5v13c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8v-13M5 12c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8" />
+  </Icon>
+);
+
+export const RouteIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="6" cy="18" r="2.2" />
+    <circle cx="18" cy="6" r="2.2" />
+    <path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8" />
+  </Icon>
+);
+
+export const PenIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z" />
+    <path d="m13.5 6.5 4 4" />
+  </Icon>
+);
+
+export const TableIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+    <path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5v10" />
+  </Icon>
+);
+
+export const CodeIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m8 7-5 5 5 5M16 7l5 5-5 5" />
+  </Icon>
+);
+
+export const ActivityIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 12h4l3-8 4 16 3-8h4" />
+  </Icon>
+);

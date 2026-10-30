@@ -7,13 +7,13 @@ const SUGGESTIONS = [
     icon: BulbIcon,
     tone: "amber",
     title: "Diagnose the onboarding slowdown",
-    prompt: "Why did customer onboarding slow down in September, and what is being done about it?",
+    prompt: "Why did customer onboarding slow down in September, and what is being done about it? Quantify it.",
   },
   {
     icon: ShieldIcon,
     tone: "red",
     title: "Brief me on an incident",
-    prompt: "Summarize INC-204: impact, root cause, and remediation.",
+    prompt: "Summarize INC-204 and show the verification timeout rate by week.",
   },
   {
     icon: CompassIcon,
@@ -24,8 +24,8 @@ const SUGGESTIONS = [
   {
     icon: SparkIcon,
     tone: "violet",
-    title: "Find the right approver",
-    prompt: "Who needs to approve a $4,500 expense, and what receipts do I need?",
+    title: "Check a target against the data",
+    prompt: "Did we meet the 3-day onboarding target for Standard plans in August, September, and October?",
   },
 ];
 
@@ -49,14 +49,14 @@ export function EmptyState({ onPick, composer, stats, embeddingModel }: Props) {
           <span className="hero-eyebrow-mark">
             <LogoMark width={13} height={13} />
           </span>
-          {greeting}. Every answer cites its sources.
+          {greeting}. Every answer cites its documents and data.
         </span>
         <h1 className="hero-title">
           What should we <em>research</em> today?
         </h1>
         <p className="hero-sub">
-          Ask about Helio's policies, procedures, incidents, and decisions. I search the company
-          knowledge base and show you exactly where each answer comes from.
+          Ask about Helio's policies, incidents, decisions, and metrics. A team of agents plans
+          the research, searches documents, queries company data, and shows its work.
         </p>
 
         {composer}
@@ -73,7 +73,10 @@ export function EmptyState({ onPick, composer, stats, embeddingModel }: Props) {
               </span>
             </>
           )}
-          <span>hybrid search · vector + keyword</span>
+          <span>
+            <b>4</b> data tables
+          </span>
+          <span>multi-agent · docs + SQL</span>
           {embeddingModel && <span>{embeddingModel}</span>}
         </div>
 
