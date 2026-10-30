@@ -16,7 +16,8 @@ COPY alembic ./alembic
 COPY alembic.ini docker-entrypoint.sh ./
 RUN pip install --no-deps . \
     && chmod +x docker-entrypoint.sh \
-    && useradd --create-home --uid 10001 appuser
+    && useradd --create-home --uid 10001 appuser \
+    && mkdir -p /app/data && chown appuser /app/data
 USER appuser
 
 EXPOSE 8000

@@ -31,8 +31,15 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       DOCUMENTS_DIR: /app/datasets/documents
       SEED_DOCUMENTS_ON_STARTUP: ${SEED_DOCUMENTS_ON_STARTUP:-true}
+      # Issue tracker for approved actions: the local SQLite tracker by default. For GitHub
+      # Issues, set TRACKER_BACKEND=github, GITHUB_REPO=owner/name, and a fine-grained
+      # GITHUB_TOKEN with only "Issues: read and write" on that repository.
+      TRACKER_BACKEND: ${TRACKER_BACKEND:-local}
+      GITHUB_REPO: ${GITHUB_REPO:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
     volumes:
       - ./datasets:/app/datasets:ro
+      - trackerdata:/app/data
     ports:
       - "8000:8000"
     depends_on:
@@ -41,3 +48,4 @@ services:
 
 volumes:
   pgdata:
+  trackerdata:
