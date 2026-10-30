@@ -50,20 +50,23 @@ Legend: ✅ done · ⏳ in progress · ⬜ planned
 
 **Acceptance (verified):** `docker compose up` seeds the corpus → a cross-document question returns a grounded answer whose citations open the exact passages → retrieval and answer evaluations are reproducible (`evals/`) and CI checks a correctly cited answer.
 
-## Phase 3 — LangGraph multi-agent orchestration ⏳
+## Phase 3 — LangGraph multi-agent orchestration ✅
 
 **Deliverable:** A complex question automatically triggers coordinated document retrieval and SQL analysis.
 
-- [ ] Graph state schema and builder
-- [ ] Supervisor with a Pydantic-validated plan
-- [ ] Research, Data, and Analysis agents as graph nodes
-- [ ] Read-only SQL role, schema allow-list, statement timeout, row limit, query validator
-- [ ] Synthetic structured dataset (`customers`, `onboarding_events`, `support_tickets`, …)
-- [ ] Bounded retries and error recovery
-- [ ] PostgreSQL checkpointing (resume interrupted runs)
-- [ ] Execution trace exposed through the API
+- [x] Graph state schema (plain JSON, checkpointable) and builder: supervisor → specialists in parallel waves → coordinator → analyst
+- [x] Supervisor with a Pydantic-validated plan: one repair round with the validation error, deterministic plan rules, keyword fallback
+- [x] Research (docs), Data, and Analysis agents as graph nodes; data steps can depend on research steps and receive their findings
+- [x] Read-only SQL: `analytics_reader` role, table and function allow-lists, statement timeout, row limit, sqlglot validator; database-level refusals tested without the validator
+- [x] Synthetic structured dataset: `customers`, `onboarding_events`, `verification_checks`, `support_tickets`, consistent with the document corpus
+- [x] Bounded retries and error recovery: node retry policies, SQL self-correction (3 attempts), reviewed-query fallback, failed steps reported in the answer
+- [x] PostgreSQL checkpointing; `POST /agent/runs/{id}/resume` continues a failed run from its last completed step
+- [x] Execution trace exposed through the API (`GET /agent/runs/{id}`) and the UI (timeline + waterfall)
+- [x] Agent evaluation: 10 tasks, 100% task success, 100% data accuracy, 0 safety failures
 
-## Phase 4 — MCP & controlled actions ⬜
+**Acceptance (verified):** asking "Why did onboarding slow down in September?" plans research + data, cites the incident report and a query result in one answer, shows the SQL and chart, and the run's trace is retrievable; a run whose analyst fails resumes without re-planning or re-querying (tested).
+
+## Phase 4 — MCP & controlled actions ⏳
 
 **Deliverable:** The assistant drafts a task, requests approval, and creates it only after authorization.
 

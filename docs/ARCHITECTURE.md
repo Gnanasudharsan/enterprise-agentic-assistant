@@ -74,25 +74,57 @@ Question ─▶ (+ previous question for short follow-ups)
 
 See [ADR 0002](adr/0002-hybrid-retrieval-in-postgres.md) for the reasoning and measured trade-offs.
 
-## 4. Data model (initial sketch)
+## 4. Multi-agent graph (Phase 3, implemented)
+
+```mermaid
+flowchart LR
+    S["Supervisor<br/>Pydantic plan · repair · rules · fallback"] -->|wave 1: Send per step| R["Docs agent<br/>hybrid retrieval, ACL"]
+    S -->|wave 1| D["Data agent<br/>SQL → guard → read-only run"]
+    R --> C{{"Coordinator"}}
+    D --> C
+    C -->|"wave 2: steps with depends_on<br/>(+ research findings)"| D
+    C -->|all steps done| A["Analyst<br/>[S#] + [T#] answer, citation check"]
+    S -->|no steps| A
+    A --> E((END))
+```
+
+- **State** is plain JSON (question, history, caller groups, plan, research results, tables, trace), so LangGraph's **Postgres checkpointer** stores it after every step. The run id is the thread id; `POST /agent/runs/{id}/resume` continues a failed run without repeating completed steps.
+- **Retries:** transient DB errors retry with backoff (node retry policy); the analyst retries once on model errors and resets streamed text. Logical failures are handled in the node: plan repair (once), SQL repair (up to 3 attempts with the error), then a reviewed query, then a reported failure that the analyst must acknowledge.
+- **Trace:** every node returns an event (status `succeeded` / `fallback` / `failed`, start time, duration, summary, detail such as SQL, attempts, or plan rules), persisted on `agent_runs` and shown as a waterfall in the UI.
+
+### SQL safety layers
+
+```
+model SQL ─▶ validate_sql (sqlglot, postgres dialect)
+             • one statement · SELECT/UNION only · no INTO / FOR UPDATE / data-modifying CTEs
+             • tables ∈ analytics.{customers, onboarding_events, verification_checks, support_tickets}
+             • functions ∈ allow-list (aggregates, window, date, math, text)
+             • LIMIT ≤ SQL_MAX_ROWS enforced
+          ─▶ SQLExecutor: SET TRANSACTION READ ONLY · SET LOCAL ROLE analytics_reader
+             · SET LOCAL statement_timeout · fetchmany(max_rows + 1) · always ROLLBACK
+```
+
+`analytics_reader` is `NOLOGIN` with `USAGE` on the analytics schema and `SELECT` on its tables only. Privileges are checked when a statement starts, so a statement can't widen its own access, and the rollback reverts any session setting. See [ADR 0003](adr/0003-multi-agent-graph-and-safe-sql.md).
+
+## 5. Data model
 
 | Table | Purpose |
 | --- | --- |
 | `documents` | Source document metadata, version, ACL, content hash, embedding model *(implemented)* |
 | `chunks` | Chunk text, heading path, generated `tsvector`, `vector(1536)`, FK to document *(implemented)* |
 | `chat_runs` | One row per run: status, latency, tokens, retrieved chunks, validated citations *(implemented)* |
-| `run_steps` | Agent/tool steps for the execution trace |
-| `actions` | Proposed actions, approval decision, executor result (audit log) |
-| `checkpoints` | LangGraph state persistence |
-| *demo schema* | `customers`, `onboarding_events`, `support_tickets`, `issues`, `operational_metrics` (synthetic) |
+| `agent_runs` | One row per multi-agent run: plan, trace, sources, tables (SQL + rows), citations, latency *(implemented)* |
+| `checkpoint*` | LangGraph state after every step, created by `AsyncPostgresSaver.setup()` *(implemented)* |
+| `analytics.*` | `customers`, `onboarding_events`, `verification_checks`, `support_tickets` (synthetic, read via `analytics_reader`) *(implemented)* |
+| `actions` | Proposed actions, approval decision, executor result (audit log) *(Phase 4)* |
 
-## 5. Trust boundaries
+## 6. Trust boundaries
 
 1. **User ↔ backend:** authenticated; every request carries a user and role context.
 2. **LLM ↔ tools:** the LLM only *proposes* tool calls. The backend validates arguments, checks permissions, and requires approval for high-impact actions.
-3. **Data Agent ↔ database:** a dedicated read-only role limited to the demo schema.
+3. **Data Agent ↔ database:** model SQL is validated, then executed read-only as `analytics_reader`, which can only see the analytics schema.
 4. **Retrieved content ↔ LLM:** retrieved text is treated as untrusted data, which is why prompt-injection tests are part of the eval suite.
 
-## 6. Decisions
+## 7. Decisions
 
 Significant decisions are recorded as ADRs in [`adr/`](adr/).
