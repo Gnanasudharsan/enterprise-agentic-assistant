@@ -5,6 +5,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-30 (Phase 4: MCP & controlled actions)
+
+### Added
+- Issue-tracker MCP server (`app.mcp_servers.tracker`): typed `create_issue` and read-only
+  `search_issues`; local SQLite backend (default) and GitHub Issues backend.
+- MCP client gateway over stdio with an isolated subprocess environment (tracker settings only).
+- Action agent: drafts one typed tool call after the answer, with a duplicate search and
+  JSON Schema validation (one repair round); offline deterministic drafts.
+- Human-in-the-loop approval as a LangGraph interrupt; run status `needs_approval`;
+  `POST /api/v1/agent/runs/{id}/actions/{action_id}/decision` (approve, edit, reject).
+- Backend policy: per-group tool allow-list, approval for non-read-only tools, approvals bound
+  to an argument hash, checks at approval and before execution, at-most-once execution.
+- `agent_actions` and append-only `action_audit` tables (migration `0004`);
+  `GET /api/v1/tools`, `GET /api/v1/actions`, `GET /api/v1/actions/{id}`.
+- UI: approval card (approve / edit / reject, duplicates, audit trail), action agent in the
+  timeline, actions panel with the audit log, pending-approval badge.
+- 15 unauthorized-action scenario tests, MCP tests, and a Postgres + stdio integration test.
+- ADR 0004; security implementation table in SECURITY.md.
+
+### Changed
+- CI smoke test also runs an approval flow end to end.
+- `alembic check` ignores LangGraph's checkpoint tables.
+
 ## [0.3.0] - 2026-10-30 (Phase 3: Multi-agent orchestration)
 
 ### Added

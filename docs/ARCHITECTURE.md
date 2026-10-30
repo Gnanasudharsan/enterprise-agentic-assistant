@@ -106,6 +106,35 @@ model SQL ─▶ validate_sql (sqlglot, postgres dialect)
 
 `analytics_reader` is `NOLOGIN` with `USAGE` on the analytics schema and `SELECT` on its tables only. Privileges are checked when a statement starts, so a statement can't widen its own access, and the rollback reverts any session setting. See [ADR 0003](adr/0003-multi-agent-graph-and-safe-sql.md).
 
+### Controlled actions (Phase 4, implemented)
+
+```mermaid
+sequenceDiagram
+    participant G as LangGraph run
+    participant AA as Action agent
+    participant DB as Postgres (actions, audit, checkpoints)
+    participant API as FastAPI
+    participant U as User
+    participant MCP as Tracker MCP server (subprocess)
+
+    G->>AA: answer + evidence (plan has an action step)
+    AA->>MCP: search_issues (read-only, no approval)
+    AA->>AA: draft create_issue · validate against the tool's JSON Schema
+    AA->>DB: agent_actions(status=proposed) · audit "proposed"
+    G-->>API: interrupt → run status needs_approval
+    API-->>U: approval card (approve / edit / reject)
+    U->>API: POST …/actions/{id}/decision
+    API->>API: permission check · validate edits · hash arguments
+    API->>DB: status=approved · audit "approved"
+    API->>G: Command(resume=decision)
+    G->>DB: re-check status, hash, permission · status=executing
+    G->>MCP: create_issue(arguments + provenance footer)
+    MCP-->>G: issue key / URL
+    G->>DB: status=executed · audit "executed"
+```
+
+The model can only produce a *draft*. Approval, permission, integrity, and execution are all backend code paths, and the only route from a draft to a tool call is the decision endpoint. See [ADR 0004](adr/0004-mcp-actions-behind-approval.md).
+
 ## 5. Data model
 
 | Table | Purpose |
@@ -116,12 +145,14 @@ model SQL ─▶ validate_sql (sqlglot, postgres dialect)
 | `agent_runs` | One row per multi-agent run: plan, trace, sources, tables (SQL + rows), citations, latency *(implemented)* |
 | `checkpoint*` | LangGraph state after every step, created by `AsyncPostgresSaver.setup()` *(implemented)* |
 | `analytics.*` | `customers`, `onboarding_events`, `verification_checks`, `support_tickets` (synthetic, read via `analytics_reader`) *(implemented)* |
-| `actions` | Proposed actions, approval decision, executor result (audit log) *(Phase 4)* |
+| `agent_actions` | Proposed tool calls: tool, arguments + approved hash, status, decided by, result *(implemented)* |
+| `action_audit` | Append-only log of proposals, edits, decisions, denials, and executions *(implemented)* |
 
 ## 6. Trust boundaries
 
 1. **User ↔ backend:** authenticated; every request carries a user and role context.
-2. **LLM ↔ tools:** the LLM only *proposes* tool calls. The backend validates arguments, checks permissions, and requires approval for high-impact actions.
+2. **LLM ↔ tools:** the LLM only *proposes* tool calls. The backend validates arguments against the tool schema, checks permissions at approval and execution, binds approvals to an argument hash, and runs each approved call at most once.
+5. **Backend ↔ tool servers:** each MCP server is a separate process holding only its own credentials.
 3. **Data Agent ↔ database:** model SQL is validated, then executed read-only as `analytics_reader`, which can only see the analytics schema.
 4. **Retrieved content ↔ LLM:** retrieved text is treated as untrusted data, which is why prompt-injection tests are part of the eval suite.
 
