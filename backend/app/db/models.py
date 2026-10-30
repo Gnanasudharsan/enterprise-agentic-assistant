@@ -5,6 +5,7 @@ from typing import Any
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Computed,
     DateTime,
     ForeignKey,
@@ -146,3 +147,52 @@ class AgentRun(Base):
     citations: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     error_type: Mapped[str | None] = mapped_column(String(64))
     latency_ms: Mapped[int | None] = mapped_column(Integer)
+
+
+class AgentAction(Base):
+    """An action an agent proposed: the exact tool call, and what happened to it.
+
+    `args_hash` fingerprints the arguments a human approved; the executor refuses to run
+    if the stored arguments no longer match it.
+    """
+
+    __tablename__ = "agent_actions"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("agent_runs.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    server: Mapped[str] = mapped_column(String(64))
+    tool: Mapped[str] = mapped_column(String(64))
+    arguments: Mapped[dict[str, Any]] = mapped_column(JSON)
+    args_hash: Mapped[str] = mapped_column(String(64))
+    rationale: Mapped[str | None] = mapped_column(Text)
+    # proposed -> approved -> executing -> executed | failed;  proposed -> rejected
+    status: Mapped[str] = mapped_column(String(16), index=True)
+    requested_by: Mapped[str] = mapped_column(String(64))
+    decided_by: Mapped[str | None] = mapped_column(String(64))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    executed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    error: Mapped[str | None] = mapped_column(Text)
+
+
+class ActionAudit(Base):
+    """Append-only log of every proposal, decision, denial, and execution."""
+
+    __tablename__ = "action_audit"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+    action_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("agent_actions.id"), index=True)
+    run_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
+    # proposed | edited | approved | rejected | denied | executing | executed | failed
+    event: Mapped[str] = mapped_column(String(16))
+    actor: Mapped[str] = mapped_column(String(64))  # a user id, or "agent" / "system"
+    detail: Mapped[dict[str, Any] | None] = mapped_column(JSON)

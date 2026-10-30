@@ -12,10 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import Session
 
 from alembic import command
+from app.actions.gateway import ToolResult
 from app.analytics.sql import QueryResult
 from app.core.config import Settings
 from app.db.base import Base
-from app.db.models import AgentRun, ChatRun
+from app.db.models import ActionAudit, AgentAction, AgentRun, ChatRun
 from app.llm.base import ChatMessage, LLMResult, StreamDelta
 from app.main import create_app
 from app.rag.embeddings import HashingEmbedder
@@ -97,6 +98,53 @@ class StubSQL:
         return self.result
 
 
+class StubTools:
+    """A ToolGateway with the tracker's real tool schemas that records every call."""
+
+    server = "tracker-stub"
+
+    def __init__(self, tools) -> None:
+        self.tools = tools
+        self.calls: list[tuple[str, dict]] = []
+        self.fail_with: str | None = None
+
+    async def call(self, name, arguments):
+        self.calls.append((name, arguments))
+        if name == "search_issues":
+            return ToolResult(ok=True, data={"issues": []})
+        if self.fail_with:
+            return ToolResult(ok=False, error=self.fail_with)
+        n = sum(1 for c, _ in self.calls if c == "create_issue")
+        return ToolResult(ok=True, data={"key": f"HEL-{n}", "url": f"tracker://helio/HEL-{n}",
+                                         "title": arguments["title"]})  # fmt: skip
+
+    def created(self) -> list[dict]:
+        return [args for name, args in self.calls if name == "create_issue"]
+
+
+@pytest.fixture(scope="session")
+def tracker_tool_specs(tmp_path_factory):
+    """The tracker MCP server's real tool list, fetched once through an in-process client."""
+    import asyncio
+
+    from mcp import Client
+
+    from app.actions.gateway import load_tools
+    from app.mcp_servers.tracker import LocalTracker, build_server
+
+    async def fetch():
+        path = tmp_path_factory.mktemp("tracker") / "t.sqlite3"
+        async with Client(build_server(LocalTracker(str(path)))) as client:
+            return await load_tools(client)
+
+    return asyncio.run(fetch())
+
+
+@pytest.fixture
+def tools(tracker_tool_specs) -> StubTools:
+    return StubTools(tracker_tool_specs)
+
+
 def make_chunk(doc_key: str, section: str, content: str) -> RetrievedChunk:
     return RetrievedChunk(
         chunk_id=uuid.uuid4(),
@@ -126,7 +174,9 @@ def db_path(tmp_path):
     path = tmp_path / "test.db"
     engine = create_engine(f"sqlite:///{path}")
     # Only tables that work on SQLite; knowledge-base tables need Postgres (integration tests).
-    Base.metadata.create_all(engine, tables=[ChatRun.__table__, AgentRun.__table__])
+    Base.metadata.create_all(
+        engine, tables=[t.__table__ for t in (ChatRun, AgentRun, AgentAction, ActionAudit)]
+    )
     engine.dispose()
     return path
 
@@ -140,6 +190,7 @@ def settings(db_path) -> Settings:
         llm_provider="fake",
         database_url=f"sqlite+aiosqlite:///{db_path}",
         agent_checkpointer="memory",
+        actions_enabled=False,  # tests that need tools install a StubTools gateway
     )
 
 
@@ -212,7 +263,12 @@ async def pg_session(migrated_db) -> AsyncIterator[AsyncSession]:
     """An async session on an empty knowledge base."""
     engine = create_async_engine(migrated_db)
     async with engine.begin() as conn:
-        await conn.execute(text("TRUNCATE documents, chunks, chat_runs, agent_runs CASCADE"))
+        await conn.execute(
+            text(
+                "TRUNCATE documents, chunks, chat_runs, agent_runs, agent_actions, action_audit "
+                "CASCADE"
+            )
+        )
     async with AsyncSession(engine, expire_on_commit=False) as session:
         yield session
     await engine.dispose()

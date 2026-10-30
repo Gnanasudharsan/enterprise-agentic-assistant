@@ -80,6 +80,23 @@ class Settings(BaseSettings):
     sql_timeout_ms: int = Field(default=5000, ge=100, le=60000)
     sql_max_rows: int = Field(default=200, ge=1, le=5000)
 
+    # --- Actions (MCP tools behind approval) ---
+    actions_enabled: bool = True
+    # The tracker MCP server runs as a subprocess and receives only these settings.
+    tracker_backend: Literal["local", "github"] = "local"
+    tracker_db_path: str = "data/tracker.sqlite3"
+    github_repo: str | None = None  # "owner/name"
+    # Fine-grained token for that repository, with only "Issues: read and write".
+    github_token: SecretStr | None = None
+    # Which access groups may use each tool. Tools not listed here are denied, and every
+    # tool not in READ_ONLY_TOOLS (app.actions.policy) needs a human approval to run.
+    action_permissions: dict[str, list[str]] = {
+        "create_issue": ["all-employees"],
+        "search_issues": ["all-employees"],
+    }
+    # The demo caller's identity, recorded on approvals, until authentication lands.
+    user_id: str = "demo-user"
+
     # --- Database ---
     database_url: str | None = None
     postgres_user: str = "assistant"
@@ -94,6 +111,10 @@ class Settings(BaseSettings):
             raise ValueError("LLM_API_KEY is required when LLM_PROVIDER=openai")
         if self.embedding_provider == "openai" and not self.llm_api_key:
             raise ValueError("LLM_API_KEY is required when EMBEDDING_PROVIDER=openai")
+        if self.tracker_backend == "github" and not (self.github_repo and self.github_token):
+            raise ValueError(
+                "GITHUB_REPO and GITHUB_TOKEN are required when TRACKER_BACKEND=github"
+            )
         return self
 
     @property

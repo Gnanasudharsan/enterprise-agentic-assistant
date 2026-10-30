@@ -9,14 +9,20 @@ import logging
 import time
 import uuid
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 from typing import Any
 
 from langgraph.graph.state import CompiledStateGraph
+from langgraph.types import Command
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.actions.gateway import ToolGateway
+from app.actions.policy import ActionPolicy, PermissionDenied, args_hash
+from app.actions.store import action_out, audit, audit_trail
+from app.agents.action_nodes import validate_arguments
 from app.agents.nodes import gather_evidence
-from app.db.models import AgentRun
+from app.db.models import AgentAction, AgentRun
 from app.llm.base import LLMClient, LLMError, LLMTimeoutError
 from app.schemas.agent import AgentRunResponse, AgentRunSummary
 from app.schemas.chat import MAX_HISTORY_MESSAGES, HistoryMessage
@@ -36,6 +42,18 @@ class RunNotResumable(RuntimeError):
     pass
 
 
+class ActionNotFound(LookupError):
+    pass
+
+
+class ActionConflict(RuntimeError):
+    """The action is not waiting for a decision (already decided, or the run moved on)."""
+
+
+class InvalidArguments(ValueError):
+    pass
+
+
 def _source_out(s: dict[str, Any]) -> dict[str, Any]:
     return {
         "index": s["index"],
@@ -50,7 +68,19 @@ def _source_out(s: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def to_response(run: AgentRun) -> AgentRunResponse:
+async def actions_for(db: AsyncSession, run_ids: list[uuid.UUID] | None = None,
+                      status: str | None = None, limit: int = 50) -> list[dict]:  # fmt: skip
+    stmt = select(AgentAction).order_by(AgentAction.created_at.desc()).limit(limit)
+    if run_ids is not None:
+        stmt = stmt.where(AgentAction.run_id.in_(run_ids))
+    if status:
+        stmt = stmt.where(AgentAction.status == status)
+    rows = list((await db.scalars(stmt)).all())
+    trails = await audit_trail(db, [r.id for r in rows])
+    return [action_out(r, trails[r.id]) for r in rows]
+
+
+def to_response(run: AgentRun, actions: list[dict] | None = None) -> AgentRunResponse:
     citations = run.citations or {}
     return AgentRunResponse(
         run_id=run.id,
@@ -67,6 +97,7 @@ def to_response(run: AgentRun) -> AgentRunResponse:
         citations={"sources": citations.get("sources", []), "tables": citations.get("tables", [])},
         invalid_citations=citations.get("invalid", 0),
         trace=run.trace or [],
+        actions=actions or [],
         error_type=run.error_type,
     )
 
@@ -81,11 +112,21 @@ def error_detail(exc: Exception) -> tuple[int, str]:
 
 class AgentService:
     def __init__(
-        self, graph: CompiledStateGraph, sessionmaker: async_sessionmaker, llm: LLMClient
+        self,
+        graph: CompiledStateGraph,
+        sessionmaker: async_sessionmaker,
+        llm: LLMClient,
+        *,
+        policy: ActionPolicy | None = None,
+        tools: ToolGateway | None = None,
+        user_id: str = "demo-user",
     ) -> None:
         self.graph = graph
         self.sessionmaker = sessionmaker
         self.llm = llm
+        self.policy = policy or ActionPolicy({})
+        self.tools = tools
+        self.user_id = user_id
 
     @staticmethod
     def _config(run_id: uuid.UUID) -> dict:
@@ -121,6 +162,8 @@ class AgentService:
         if run.status == "succeeded":
             yield "done", run.model_dump(mode="json")
             return
+        if run.status == "needs_approval":
+            raise RunNotResumable("This run is waiting for an approval decision.")
         snapshot = await self.graph.aget_state(self._config(run_id))
         if not snapshot.values:
             raise RunNotResumable("No checkpoint exists for this run.")
@@ -128,7 +171,9 @@ class AgentService:
         async for event in self._execute(run_id, None):  # None = continue from checkpoint
             yield event
 
-    async def _execute(self, run_id: uuid.UUID, inputs: dict | None) -> AsyncIterator[Event]:
+    async def _execute(
+        self, run_id: uuid.UUID, inputs: dict | Command | None
+    ) -> AsyncIterator[Event]:
         started = time.perf_counter()
         config = self._config(run_id)
         try:
@@ -143,8 +188,13 @@ class AgentService:
             yield "error", {"status": code, "detail": detail, "run_id": str(run_id),
                             "resumable": True}  # fmt: skip
             return
-        values = (await self.graph.aget_state(config)).values
-        response = await self._finish(run_id, values, started)
+        snapshot = await self.graph.aget_state(config)
+        paused = "approval" in snapshot.next  # stopped at the interrupt, waiting for a human
+        response = await self._finish(run_id, snapshot.values, started, paused=paused)
+        if paused:
+            pending = [a for a in response.actions if a.status == "proposed"]
+            yield "approval_required", {"run_id": str(run_id),
+                                        "action_ids": [str(a.id) for a in pending]}  # fmt: skip
         yield "done", response.model_dump(mode="json")
 
     async def _finish(
@@ -153,13 +203,14 @@ class AgentService:
         values: dict[str, Any],
         started: float,
         error: Exception | None = None,
+        paused: bool = False,
     ) -> AgentRunResponse:
         sources, tables = gather_evidence(values) if values.get("plan") else ([], [])
         citations = values.get("citations", {})
         async with self.sessionmaker() as db:
             run = await db.get(AgentRun, run_id)
             assert run is not None
-            run.status = "failed" if error else "succeeded"
+            run.status = "failed" if error else "needs_approval" if paused else "succeeded"
             run.error_type = type(error).__name__ if error else None
             run.plan = values.get("plan")
             run.trace = values.get("trace", [])
@@ -172,14 +223,96 @@ class AgentService:
             run.latency_ms = (run.latency_ms or 0) + round((time.perf_counter() - started) * 1000)
             await db.commit()
             await db.refresh(run)
-            return to_response(run)
+            return to_response(run, await actions_for(db, [run_id]))
 
     async def get(self, run_id: uuid.UUID) -> AgentRunResponse:
         async with self.sessionmaker() as db:
             run = await db.get(AgentRun, run_id)
-        if run is None:
-            raise RunNotFound(str(run_id))
-        return to_response(run)
+            if run is None:
+                raise RunNotFound(str(run_id))
+            return to_response(run, await actions_for(db, [run_id]))
+
+    # ------------------------------------------------------------------ approvals
+
+    async def record_decision(
+        self,
+        run_id: uuid.UUID,
+        action_id: uuid.UUID,
+        decision: str,
+        groups: list[str],
+        arguments: dict[str, Any] | None = None,
+        comment: str | None = None,
+    ) -> dict[str, Any]:
+        """Validate and record a human decision. Returns the value the graph resumes with.
+
+        Raises RunNotFound / ActionNotFound (404), PermissionDenied (403), ActionConflict
+        (409), or InvalidArguments (422). Nothing is executed here.
+        """
+        async with self.sessionmaker() as db:
+            run = await db.get(AgentRun, run_id)
+            if run is None:
+                raise RunNotFound(str(run_id))
+            action = await db.get(AgentAction, action_id, with_for_update=True)
+            if action is None or action.run_id != run_id:
+                raise ActionNotFound(str(action_id))
+            if action.status != "proposed" or run.status != "needs_approval":
+                raise ActionConflict(f"This action is already {action.status}.")
+            try:
+                self.policy.check(action.tool, groups)
+            except PermissionDenied as exc:
+                audit(db, "denied", self.user_id, action_id=action.id, run_id=run_id,
+                      reason=str(exc), attempted=decision)  # fmt: skip
+                await db.commit()
+                raise
+
+            if decision == "approve":
+                if arguments is not None and arguments != action.arguments:
+                    spec = next((t for t in (self.tools.tools if self.tools else [])
+                                 if t.name == action.tool), None)  # fmt: skip
+                    if spec is None:
+                        raise ActionConflict("The tool server is not connected.")
+                    try:
+                        validate_arguments(spec, arguments)
+                    except ValueError as exc:
+                        raise InvalidArguments(str(exc)) from exc
+                    changed = sorted(k for k in {*arguments, *action.arguments}
+                                     if arguments.get(k) != action.arguments.get(k))  # fmt: skip
+                    audit(db, "edited", self.user_id, action_id=action.id, run_id=run_id,
+                          fields=changed)  # fmt: skip
+                    action.arguments = arguments
+                action.args_hash = args_hash(action.tool, action.arguments)
+                action.status = "approved"
+            else:
+                action.status = "rejected"
+            action.decided_by = self.user_id
+            action.decided_at = datetime.now(UTC)
+            audit(db, action.status, self.user_id, action_id=action.id, run_id=run_id,
+                  comment=comment)  # fmt: skip
+            await db.commit()
+            return {
+                "decision": action.status,
+                "by": self.user_id,
+                "groups": list(groups),
+                "args_hash": action.args_hash,
+            }
+
+    async def continue_after_decision(
+        self, run_id: uuid.UUID, resume_value: dict[str, Any]
+    ) -> AsyncIterator[Event]:
+        yield "run", {"run_id": str(run_id), "resumed": True, "pending": ["execute_action"]}
+        async for event in self._execute(run_id, Command(resume=resume_value)):
+            yield event
+
+    async def list_actions(self, status: str | None = None, limit: int = 50) -> list[dict]:
+        async with self.sessionmaker() as db:
+            return await actions_for(db, None, status, limit)
+
+    async def get_action(self, action_id: uuid.UUID) -> dict:
+        async with self.sessionmaker() as db:
+            row = await db.get(AgentAction, action_id)
+            if row is None:
+                raise ActionNotFound(str(action_id))
+            return action_out(row, (await audit_trail(db, [row.id]))[row.id])
 
     async def list(self, limit: int = 20) -> list[AgentRunSummary]:
         async with self.sessionmaker() as db:
