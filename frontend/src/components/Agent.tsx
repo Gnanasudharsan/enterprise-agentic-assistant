@@ -10,6 +10,7 @@ import {
   DatabaseIcon,
   PenIcon,
   RouteIcon,
+  TicketIcon,
 } from "./Icons";
 
 type RowState = "pending" | "active" | "done" | "warn" | "bad";
@@ -23,7 +24,7 @@ interface Row {
   detail?: ReactNode;
 }
 
-const AGENT_LABEL = { research: "Docs agent", data: "Data agent" } as const;
+const AGENT_LABEL = { research: "Docs agent", data: "Data agent", action: "Action agent" } as const;
 
 function stateOf(e: StepEvent | undefined, streaming: boolean): RowState {
   if (!e) return streaming ? "pending" : "warn";
@@ -93,7 +94,8 @@ function rows(message: Message): Row[] {
         : planned?.reasoning || (sup?.status === "running" ? undefined : undefined),
   });
 
-  for (const step of planned?.steps ?? []) result.push(stepRow(step, agent, streaming));
+  const actionStep = planned?.steps.find((s) => s.agent === "action");
+  for (const step of planned?.steps ?? []) if (step !== actionStep) result.push(stepRow(step, agent, streaming));
 
   if (planned) {
     const analyst = agent.steps.analyst;
@@ -109,6 +111,42 @@ function rows(message: Message): Row[] {
       detail: done
         ? `Cites ${sources} source${sources === 1 ? "" : "s"} and ${tables} table${tables === 1 ? "" : "s"}, all verified`
         : undefined,
+    });
+  }
+  if (actionStep) {
+    const e = agent.steps[actionStep.id];
+    const action = agent.actions?.[0];
+    const state: RowState = action
+      ? action.status === "executed" || action.status === "rejected"
+        ? "done"
+        : action.status === "failed"
+          ? "bad"
+          : action.status === "proposed"
+            ? "warn"
+            : "active"
+      : e?.status === "failed"
+        ? "bad"
+        : e?.status === "running"
+          ? "active"
+          : streaming
+            ? "pending"
+            : "warn";
+    result.push({
+      key: actionStep.id,
+      state,
+      icon: <TicketIcon width={12} height={12} />,
+      agent: AGENT_LABEL.action,
+      label: actionStep.goal,
+      detail: action
+        ? {
+            proposed: "Drafted — waiting for your approval",
+            approved: "Approved, creating…",
+            executing: "Creating…",
+            executed: `Created ${action.result?.key ?? ""} after your approval`,
+            rejected: "You rejected it; nothing was created",
+            failed: action.error ?? "Failed",
+          }[action.status]
+        : e?.summary,
     });
   }
   return result;
@@ -137,6 +175,10 @@ function Timeline({ list }: { list: Row[] }) {
   );
 }
 
+function actionKey(agent: AgentProgress): string | undefined {
+  return agent.plan?.steps.find((s) => s.agent === "action")?.id;
+}
+
 export function AgentSteps({ message, onOpenTrace }: { message: Message; onOpenTrace: () => void }) {
   const [open, setOpen] = useState(false);
   const agent = message.agent;
@@ -152,8 +194,9 @@ export function AgentSteps({ message, onOpenTrace }: { message: Message; onOpenT
     passages ? `${passages} passages` : null,
     queries ? `${queries} ${queries === 1 ? "query" : "queries"}` : null,
     agent.latencyMs ? `${(agent.latencyMs / 1000).toFixed(1)}s` : null,
+    agent.awaitingApproval ? "waiting for your approval" : null,
   ].filter(Boolean);
-  const problems = list.some((r) => r.state === "warn" || r.state === "bad");
+  const problems = list.some((r) => r.state === "bad" || (r.state === "warn" && r.key !== actionKey(agent)));
 
   return (
     <div className="steps">

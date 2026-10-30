@@ -11,6 +11,7 @@ import {
   ShieldIcon,
   SparkIcon,
   SunIcon,
+  TicketIcon,
   TrashIcon,
 } from "./Icons";
 
@@ -27,11 +28,13 @@ interface Props {
   onDelete: (id: string) => void;
   onOpenKnowledgeBase: () => void;
   onOpenPalette: () => void;
+  onOpenActions: () => void;
+  pendingActions: number;
 }
 
 const ROADMAP = [
-  { icon: ShieldIcon, label: "Approved actions (MCP)", phase: "P4" },
-  { icon: SparkIcon, label: "Safety evals", phase: "P5" },
+  { icon: ShieldIcon, label: "Safety evals", phase: "P5" },
+  { icon: SparkIcon, label: "Baseline vs. agents", phase: "P5" },
   { icon: ChartIcon, label: "Cloud deployment", phase: "P6" },
 ];
 
@@ -86,6 +89,14 @@ export function Sidebar(props: Props) {
       <button type="button" className="nav-item" onClick={props.onOpenKnowledgeBase}>
         <BookIcon width={16} height={16} /> Knowledge base
         {documentCount != null && <span className="nav-count">{documentCount}</span>}
+      </button>
+      <button type="button" className="nav-item" onClick={props.onOpenActions}>
+        <TicketIcon width={16} height={16} /> Actions
+        {props.pendingActions > 0 && (
+          <span className="nav-count nav-count-alert" title="Waiting for your approval">
+            {props.pendingActions}
+          </span>
+        )}
       </button>
 
       <nav className="history" aria-label="Conversations">

@@ -18,8 +18,8 @@ const SUGGESTIONS = [
   {
     icon: CompassIcon,
     tone: "blue",
-    title: "Check a policy",
-    prompt: "How many unused PTO days carry over to next year, and when do they expire?",
+    title: "File a follow-up for approval",
+    prompt: "What remediation from INC-204 is still open? Create a follow-up issue for it.",
   },
   {
     icon: SparkIcon,

@@ -7,7 +7,11 @@ import {
   ApiError,
   type AssistantInfo,
   checkReady,
+  decideAction,
   getInfo,
+  type IssueArguments,
+  listTools,
+  type ToolInfo,
   type HistoryMessage,
   listDocuments,
   resumeAgent,
@@ -15,6 +19,7 @@ import {
   streamAgent,
   streamChat,
 } from "./api";
+import { ActionsPanel } from "./components/ActionsPanel";
 import { type Command, CommandPalette } from "./components/CommandPalette";
 import { Composer } from "./components/Composer";
 import { EmptyState } from "./components/EmptyState";
@@ -28,6 +33,7 @@ import {
   MoonIcon,
   PlusIcon,
   SunIcon,
+  TicketIcon,
   UploadIcon,
 } from "./components/Icons";
 import { KnowledgeBase } from "./components/KnowledgeBase";
@@ -82,6 +88,9 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mode, setMode] = useState<Mode>(loadMode);
   const [traceRun, setTraceRun] = useState<string | null>(null);
+  const [tools, setTools] = useState<ToolInfo[]>([]);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [actionsVersion, setActionsVersion] = useState(0);
   const [openSource, setOpenSource] = useState<{ source: Source; total: number } | null>(null);
   const [kbOpen, setKbOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -96,6 +105,11 @@ export default function App() {
   const stickToBottom = useRef(true);
 
   const active = conversations.find((c) => c.id === activeId) ?? null;
+  const pendingActions = conversations.reduce(
+    (n, c) =>
+      n + c.messages.reduce((k, m) => k + (m.agent?.actions?.filter((a) => a.status === "proposed").length ?? 0), 0),
+    0,
+  );
   const sorted = useMemo(
     () => [...conversations].sort((a, b) => b.updatedAt - a.updatedAt),
     [conversations],
@@ -125,6 +139,9 @@ export default function App() {
     getInfo()
       .then(setInfo)
       .catch(() => setInfo(null));
+    listTools()
+      .then(setTools)
+      .catch(() => setTools([]));
     refreshStats();
   }, [refreshStats]);
 
@@ -176,6 +193,10 @@ export default function App() {
         patchAgent(() => ({ tables }));
       },
       onAnswerReset: () => patch((m) => ({ ...m, content: "" })),
+      onAction: (action) =>
+        patchAgent((a) => ({
+          actions: [...(a.actions ?? []).filter((x) => x.id !== action.id), action],
+        })),
       onDelta: (text) => patch((m) => ({ ...m, content: m.content + text })),
     };
   }
@@ -199,8 +220,11 @@ export default function App() {
         model: run.model,
         invalidCitations: run.invalid_citations,
         resumable: false,
+        actions: run.actions,
+        awaitingApproval: run.status === "needs_approval",
       },
     }));
+    setActionsVersion((v) => v + 1);
   }
 
   function failAgent(convId: string, msgId: string, err: unknown, aborted: boolean) {
@@ -288,6 +312,37 @@ export default function App() {
     }
   }
 
+  /** Approve or reject a proposed action; the paused run then continues in this message. */
+  async function decide(
+    msgId: string,
+    actionId: string,
+    decision: "approve" | "reject",
+    args?: IssueArguments,
+  ) {
+    const msg = active?.messages.find((m) => m.id === msgId);
+    const runId = msg?.agent?.runId;
+    if (!active || !runId || busy) return;
+    const convId = active.id;
+    setBusy(true);
+    try {
+      const run = await decideAction(
+        runId,
+        actionId,
+        { decision, arguments: args as Record<string, unknown> | undefined },
+        agentHandlers(convId, msgId),
+      );
+      finishAgent(convId, msgId, run);
+      const action = run.actions.find((a) => a.id === actionId);
+      if (action?.status === "executed") notify(`Created ${action.result?.key ?? "the issue"}`);
+      else if (action?.status === "rejected") notify("Action rejected; nothing was created");
+      else if (action?.status === "failed") notify(action.error ?? "The action failed", "error");
+    } catch (err) {
+      notify(describeError(err), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   /** Continue a failed agent run from its last checkpoint, in the same message. */
   async function resume() {
     if (!active || busy) return;
@@ -370,6 +425,12 @@ export default function App() {
         icon: <UploadIcon width={15} height={15} />,
         run: () => setKbOpen(true),
       },
+      {
+        id: "actions",
+        label: "Open actions & audit log",
+        icon: <TicketIcon width={15} height={15} />,
+        run: () => setActionsOpen(true),
+      },
       { id: "agent", label: "Mode: research agent (documents + data)", icon: <SparkIcon width={15} height={15} />, run: () => setMode("agent") },
       { id: "docs", label: "Mode: company documents only", icon: <BookIcon width={15} height={15} />, run: () => setMode("docs") },
       { id: "general", label: "Mode: general answers", icon: <GlobeIcon width={15} height={15} />, run: () => setMode("general") },
@@ -437,6 +498,11 @@ export default function App() {
           setPaletteOpen(true);
           setSidebarOpen(false);
         }}
+        pendingActions={pendingActions}
+        onOpenActions={() => {
+          setActionsOpen(true);
+          setSidebarOpen(false);
+        }}
       />
       {sidebarOpen && <div className="scrim" onClick={() => setSidebarOpen(false)} />}
 
@@ -500,6 +566,9 @@ export default function App() {
                   }
                   onOpenTrace={setTraceRun}
                   onResume={resume}
+                  onDecide={(actionId, decision, args) => decide(m.id, actionId, decision, args)}
+                  tools={tools}
+                  busy={busy}
                   onCopied={() => notify("Answer copied")}
                 />
               ))}
@@ -537,6 +606,11 @@ export default function App() {
         onClose={() => setOpenSource(null)}
       />
       <TracePanel runId={traceRun} onClose={() => setTraceRun(null)} />
+      <ActionsPanel
+        open={actionsOpen}
+        onClose={() => setActionsOpen(false)}
+        refreshKey={actionsVersion}
+      />
       <KnowledgeBase
         open={kbOpen}
         onClose={() => setKbOpen(false)}
