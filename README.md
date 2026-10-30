@@ -4,7 +4,7 @@
 
 ![Status](https://img.shields.io/badge/status-in%20development-yellow)
 [![CI](https://github.com/Gnanasudharsan/enterprise-agentic-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/Gnanasudharsan/enterprise-agentic-assistant/actions/workflows/ci.yml)
-![Phase](https://img.shields.io/badge/phase-2%20%E2%80%94%20hybrid%20RAG-blue)
+![Phase](https://img.shields.io/badge/phase-3%20%E2%80%94%20multi--agent-blue)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -96,19 +96,19 @@ More detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 <details>
 <summary><b>1. Supervisor / Planner</b>: decomposes the request and routes it</summary>
 
-Produces a structured plan that is validated against a Pydantic schema. The LLM's JSON is never trusted blindly. The supervisor also decides when there's enough evidence, when to retry, and when to stop.
+Produces a structured plan that is validated against a Pydantic schema. The LLM's JSON is never trusted blindly: an invalid plan is sent back once with the validation error, deterministic rules are applied on top (a question about a *target* or *policy* always gets a research step, so the target is cited), and if the model still can't plan, a keyword plan keeps the system working.
 
 ```json
 {
-  "intent": "research_analyze_propose_action",
-  "tasks": [
-    {"agent": "research", "task": "Find Q3 support incidents"},
-    {"agent": "data",     "task": "Calculate delay trends"},
-    {"agent": "analysis", "task": "Compare evidence and explain causes"},
-    {"agent": "action",   "task": "Draft a ticket for approval"}
+  "reasoning": "Quantify the slowdown with data, then explain it from the incident report.",
+  "steps": [
+    {"id": "s1", "agent": "research", "goal": "Find the INC-204 dates and root cause", "query": "INC-204 verification timeouts", "depends_on": []},
+    {"id": "s2", "agent": "data", "goal": "Weekly verification timeout rate", "query": "Weekly KYB timeout rate around INC-204", "depends_on": ["s1"]}
   ]
 }
 ```
+
+Independent steps run **in parallel**. A data step that needs facts only the documents contain (incident dates, a target, a definition) declares `depends_on` and runs in a second wave with that research step's findings.
 </details>
 
 <details>
@@ -122,13 +122,18 @@ Semantic search finds conceptually related content. Keyword search catches exact
 <details>
 <summary><b>3. Data Agent</b>: safe, read-only SQL</summary>
 
-Read-only database role, allow-listed schemas, query validation, statement timeouts, and row limits. Numbers are computed deterministically in SQL or Python.
+Writes PostgreSQL over the `analytics` schema, then two independent layers keep it safe:
+
+1. **Static validation** (sqlglot): exactly one `SELECT`, only allow-listed `analytics.*` tables, only allow-listed functions (no `pg_sleep`, `set_config`, `dblink`, `pg_read_file`…), no data-modifying CTEs, `SELECT INTO` or `FOR UPDATE`, and an enforced `LIMIT`.
+2. **Least-privilege execution:** a `READ ONLY` transaction as the `analytics_reader` role (SELECT on the analytics schema only), with a statement timeout and a row cap. Even a query that slipped past the validator can't write or read application tables; integration tests prove the database refuses on its own.
+
+A rejected or failing query is sent back to the model with the error (up to 3 attempts). If it still fails, a matching **reviewed query** from a small certified catalog is used, and the answer says so. Numbers come from SQL, never from the LLM.
 </details>
 
 <details>
 <summary><b>4. Evidence Analysis Agent</b>: honest synthesis</summary>
 
-Combines document and data findings. Flags missing or contradictory evidence and **never presents correlation as causation**.
+Writes the answer from numbered evidence: passages `[S1]…` and query results `[T1]…`. Every marker is validated against what was actually provided and invalid ones are removed. It quantifies with data, explains with documents, reports both values when they disagree (e.g. the incident report's 22% vs. the check log's 24.5%), says what's missing when a step failed, and **never presents correlation as causation**.
 </details>
 
 <details>
@@ -166,8 +171,8 @@ Each phase ends with a working, **tested** deliverable. Full checklist: [`docs/R
 | 0 | Project planning & repository setup | README, architecture, roadmap, repo conventions | ✅ Done |
 | 1 | Foundation | Prompt in → LLM answer out, through our own FastAPI app + Postgres + Docker | ✅ Done |
 | 2 | Reliable hybrid RAG | Questions over uploaded docs, answered with verifiable source passages | ✅ Done |
-| 3 | LangGraph multi-agent orchestration | Complex questions trigger coordinated retrieval + SQL analysis | ⏳ Next |
-| 4 | MCP & controlled actions | Drafted task → approval → created only after authorization | ⬜ Planned |
+| 3 | LangGraph multi-agent orchestration | Complex questions trigger coordinated retrieval + SQL analysis | ✅ Done |
+| 4 | MCP & controlled actions | Drafted task → approval → created only after authorization | ⏳ Next |
 | 5 | Evaluation, reliability & security | Reproducible reports: baseline RAG vs. hybrid vs. agentic | ⬜ Planned |
 | 6 | Deployment & presentation | Deployed on Cloud Run with docs, diagrams, eval results, demo | ⬜ Planned |
 
@@ -175,7 +180,22 @@ Changes are logged in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Evaluation
 
-### Measured so far (Phase 2, 2026-10-29)
+### Multi-agent runs (Phase 3, 2026-10-30)
+
+10 tasks across cross-source, data, document, safety, and conversational questions, with numbers checked against the deterministic analytics data ([agent report](evals/reports/agents-2026-10-30.md)):
+
+| Metric | Result |
+| --- | --- |
+| Task success (all checks pass) | **100%** (10 / 10) |
+| Routing (plan used the needed specialists) | 100% |
+| Data accuracy (expected numbers in the answer) | 100% |
+| Document grounding / citation validity | 100% / 100% |
+| Safety (injected SQL contained, no restricted leaks) | 100% |
+| Latency p50 / p95 | 3.7 s / 11.1 s |
+
+The first run scored 70%. Two of those failures were real coordination gaps (the data agent guessed the incident dates; the planner skipped citing the target it measured), which led to step dependencies and the target rule. The tasks were used during development, so this is a regression suite; Phase 5 adds a held-out benchmark.
+
+### Retrieval and grounded answers (Phase 2, 2026-10-29)
 
 Measured on the synthetic Helio corpus with a 37-question gold set ([retrieval report](evals/reports/retrieval-2026-10-29.md), [answer report](evals/reports/answers-2026-10-29.md)):
 
@@ -210,9 +230,9 @@ Three configurations will be compared: **(1)** basic vector RAG, **(2)** hybrid 
 The system uses a **fictional software company** built from public documentation plus **clearly labeled synthetic records**. No confidential data is used.
 
 - **Unstructured:** product docs, policies, onboarding procedures, incident reports, support notes (Markdown/PDF/DOCX)
-- **Structured (Phase 3):** PostgreSQL tables such as `customers`, `onboarding_events`, `support_tickets`, `issues`, and `operational_metrics`
+- **Structured:** the `analytics` schema: `customers` (295), `onboarding_events`, `verification_checks` (KYB calls to the provider), and `support_tickets`, July–October 2026, generated deterministically by [`app/analytics/seed.py`](backend/app/analytics/seed.py)
 
-The document corpus is in [`datasets/documents`](datasets/documents/README.md): 12 documents for the fictional *Helio Systems* (policies, procedures, incident reports, an ADR, a playbook, a spec). Two are access-restricted (`hr-confidential`, `leadership`) to test permission-aware retrieval. The September 2026 onboarding slowdown deliberately spans four documents.
+The document corpus is in [`datasets/documents`](datasets/documents/README.md): 12 documents for the fictional *Helio Systems* (policies, procedures, incident reports, an ADR, a playbook, a spec). Two are access-restricted (`hr-confidential`, `leadership`) to test permission-aware retrieval. The September 2026 onboarding slowdown deliberately spans four documents, and the analytics data tells the same story: 118 `kyb-verification` tickets in September against 9 in August, a ~24% timeout rate during INC-204, and a Standard-plan median onboarding time of 2.4 → 4.9 → 3.3 business days (Aug → Sep → Oct).
 
 Because the dataset is built for this project, cross-source questions have **known answers**. That makes evaluation reproducible, and actions can be demonstrated safely.
 
@@ -228,11 +248,11 @@ enterprise-agentic-assistant/
 │   │   ├── core/           # typed settings
 │   │   ├── llm/            # provider-agnostic LLM clients
 │   │   ├── schemas/        # Pydantic request/response models
-│   │   ├── agents/         # supervisor, research, data, analysis, action
+│   │   ├── agents/         # LangGraph state, plan, nodes, graph, service, certified queries
+│   │   ├── analytics/      # analytics schema, seed data, SQL guard + read-only executor
 │   │   ├── rag/            # parsing, chunking, embeddings, ingestion, retrieval, reranking, grounding
-│   │   ├── graph/          # LangGraph state, builder, routing
 │   │   ├── tools/          # MCP adapters & typed tools
-│   │   ├── security/       # authn/z, SQL guardrails, approval policy
+│   │   ├── security/       # authn/z, approval policy (Phase 4)
 │   │   ├── db/             # SQLAlchemy models, sessions
 │   │   └── main.py
 │   ├── alembic/            # database migrations
@@ -241,7 +261,6 @@ enterprise-agentic-assistant/
 ├── frontend/               # React + TypeScript UI
 ├── datasets/
 │   ├── documents/          # unstructured corpus
-│   ├── structured/         # SQL seed data
 │   └── evaluation/         # gold Q&A + evidence labels
 ├── evals/                  # evaluation harness & reports
 ├── docs/                   # architecture, roadmap, decisions
@@ -253,7 +272,11 @@ enterprise-agentic-assistant/
 
 ## Getting started
 
-What works today (Phases 1–2):
+What works today (Phases 1–3):
+
+- **Multi-agent research:** a LangGraph supervisor plans each question; a docs agent and a data agent run in parallel (or in two waves when the data needs the documents' findings); an analyst writes one answer citing both `[S#]` passages and `[T#]` query results. Every step is checkpointed in Postgres, every run has a full execution trace, and failed runs resume from the last completed step.
+- **Safe SQL over company data:** validated, read-only, time- and row-limited queries over the `analytics` schema, self-correcting on errors, with reviewed fallback queries.
+- **UI:** an Agent / Docs / General mode switch, a live agent timeline, data cards with chart / table / SQL views, data citations that jump to their table, and a trace panel with a timing waterfall.
 
 - **Grounded answers over company documents:** hybrid retrieval (pgvector + Postgres full-text, fused with RRF), permission filtering in SQL, numbered sources, and `[S#]` citations validated against what was actually retrieved.
 - **Ingestion:** Markdown, text, PDF, and Word, with heading-aware chunking. Upload from the UI or API, or seed the demo corpus with the CLI. Re-ingestion is idempotent.
@@ -299,6 +322,10 @@ curl -X POST localhost:8000/api/v1/chat -H 'content-type: application/json' -d '
 ```
 
 ```bash
+curl -X POST localhost:8000/api/v1/agent/run -H 'content-type: application/json' -d '{"prompt": "Why did onboarding slow down in September, and how many kyb tickets did it cause?"}'
+```
+
+```bash
 curl -X POST localhost:8000/api/v1/search -H 'content-type: application/json' -d '{"query": "INC-204 root cause", "mode": "hybrid"}'
 ```
 
@@ -315,6 +342,11 @@ Interactive API docs: <http://localhost:8000/docs>
 | `GET /api/v1/documents` | Documents the caller can read |
 | `POST /api/v1/documents` | Multipart upload (`.md`, `.txt`, `.pdf`, `.docx`, 5 MB), optional `acl` |
 | `GET /api/v1/chunks/{id}` | One passage with its document metadata (ACL-checked) |
+| `POST /api/v1/agent/run` | `{"prompt", "history"}` → multi-agent run: plan, sources, tables (SQL + rows + chart hint), validated `[S#]`/`[T#]` citations, trace |
+| `POST /api/v1/agent/stream` | Same request; SSE: `run`, `plan`, `step`, `sql`, `evidence`, `answer_reset`, `delta`, then `done` or `error` (with `run_id`, `resumable`) |
+| `GET /api/v1/agent/runs` | Recent runs |
+| `GET /api/v1/agent/runs/{id}` | One run's plan, execution trace (every step with timing and outcome), SQL, evidence, and answer |
+| `POST /api/v1/agent/runs/{id}/resume` | Continue a failed run from its last checkpoint (SSE); completed steps are not repeated |
 
 Chat requests accept `use_knowledge_base` (default `true`). Responses include `retrieval`, `sources`, `citations` (validated source numbers), and `invalid_citations`.
 
@@ -327,6 +359,18 @@ cd backend && .venv/bin/python -m app.rag.cli ingest ../datasets/documents
 ```bash
 cd backend && .venv/bin/python -m app.rag.cli search "how many PTO days carry over" --mode hybrid
 ```
+
+### Analytics CLI
+
+```bash
+cd backend && .venv/bin/python -m app.analytics.cli seed
+```
+
+```bash
+cd backend && .venv/bin/python -m app.analytics.cli query "SELECT to_char(created_at, 'YYYY-MM') AS month, count(*) FROM analytics.support_tickets WHERE tag = 'kyb-verification' GROUP BY 1 ORDER BY 1"
+```
+
+Queries from the CLI go through the same validator and read-only executor as the data agent.
 
 ### 3. Run the frontend
 
@@ -356,7 +400,7 @@ docker run -d --rm --name eaa-pg-test -e POSTGRES_USER=assistant -e POSTGRES_PAS
 cd backend && DATABASE_URL=postgresql+asyncpg://assistant:test@localhost:55432/assistant_test .venv/bin/pytest -m integration
 ```
 
-CI runs lint, unit tests, integration tests against pgvector (ingestion, hybrid retrieval, ACL enforcement, documents API), a Docker Compose smoke test that checks for a grounded, correctly cited answer, and the frontend build on every push.
+CI runs lint, unit tests, integration tests against pgvector (ingestion, hybrid retrieval, ACL enforcement, documents API, analytics seed, the read-only role, and an offline agent run with the Postgres checkpointer), a Docker Compose smoke test that checks a correctly cited chat answer and a multi-agent run citing data, and the frontend build on every push.
 
 ### Running the evaluations
 
@@ -372,9 +416,13 @@ The answer evaluation runs against the live API (needs a real model):
 cd backend && .venv/bin/python ../evals/answer_eval.py
 ```
 
+```bash
+cd backend && .venv/bin/python ../evals/agent_eval.py
+```
+
 ## Security principles
 
-- **Least privilege everywhere:** a read-only DB role for agent SQL, and scoped tokens for each tool.
+- **Least privilege everywhere:** agent SQL is validated, then run read-only as `analytics_reader`, which can see only the analytics schema (enforced by the database, tested without the validator). Scoped tokens for each tool (Phase 4).
 - **Approval enforced by the backend, not by the LLM.** High-impact actions pause the graph until a human approves.
 - **No secrets in prompts.** Credentials live in server-side config, never in agent messages.
 - **Permission-aware retrieval.** Access control is applied before passages reach the model.

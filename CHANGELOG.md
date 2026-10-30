@@ -5,6 +5,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-30 (Phase 3: Multi-agent orchestration)
+
+### Added
+- LangGraph graph: supervisor (Pydantic plan, repair, plan rules, keyword fallback) → docs and
+  data agents in parallel waves (data steps can depend on research findings) → analyst.
+- `analytics` schema with deterministic synthetic data (customers, onboarding events,
+  verification checks, support tickets) consistent with the document corpus; seeded on startup.
+- Safe SQL: sqlglot validator (tables, functions, single read-only SELECT, LIMIT) and a
+  read-only executor as the `analytics_reader` role with timeout and row cap.
+- SQL self-correction (3 attempts) and a catalog of reviewed queries as fallback/examples.
+- `[T#]` data citations validated alongside `[S#]`; chart hints for query results.
+- Postgres checkpointing; `agent_runs` table with plan, trace, evidence, and answer.
+- `POST /api/v1/agent/run`, `/agent/stream` (SSE), `GET /agent/runs`, `GET /agent/runs/{id}`,
+  `POST /agent/runs/{id}/resume`.
+- UI: Agent / Docs / General modes, live agent timeline, data cards (chart, table, SQL),
+  data citations, trace panel with a timing waterfall, resume after failure.
+- Agent evaluation (10 tasks) and report; `app.analytics.cli seed|query`.
+- ADR 0003.
+
+### Changed
+- `LLMClient.complete` accepts `json_mode` (JSON object responses, temperature 0).
+- Citation checking generalized to multiple marker prefixes.
+- CI smoke test also checks an offline multi-agent run that cites data.
+
 ## [0.2.0] - 2026-10-29 (Phase 2: Hybrid RAG)
 
 ### Added
