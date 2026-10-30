@@ -24,6 +24,7 @@ from langgraph.config import get_stream_writer
 from langgraph.types import Send
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from app.actions.gateway import ToolGateway
 from app.agents.catalog import match_certified
 from app.agents.plan import Plan, apply_plan_rules, fallback_plan, parse_plan, planner_messages
 from app.agents.prompts import ANALYST_PROMPT, NO_EVIDENCE_PROMPT, SQL_PROMPT
@@ -48,6 +49,7 @@ class AgentDeps:
     sessionmaker: async_sessionmaker
     sql: SQLExecutor
     settings: Settings
+    tools: ToolGateway | None = None  # None: actions unavailable
 
 
 class Timer:
@@ -153,12 +155,13 @@ class Agents:
         settings, llm = self.deps.settings, self.deps.llm
         emit({"type": "step", "node": "supervisor", "status": "running"})
 
+        actions = self.deps.tools is not None
         plan: Plan | None = None
         problems: list[str] = []
         attempts = 0
         if llm.provider != "fake":
             messages = planner_messages(
-                state["question"], _history(state), settings.agent_max_plan_steps
+                state["question"], _history(state), settings.agent_max_plan_steps, actions
             )
             for attempts in range(1, settings.agent_max_plan_attempts + 1):  # noqa: B007
                 try:
@@ -167,7 +170,7 @@ class Agents:
                     problems.append(f"model request failed: {type(exc).__name__}")
                     break
                 try:
-                    plan = parse_plan(result.content, settings.agent_max_plan_steps)
+                    plan = parse_plan(result.content, settings.agent_max_plan_steps, actions)
                     break
                 except ValueError as exc:
                     problems.append(str(exc))
@@ -184,7 +187,7 @@ class Agents:
 
         status = "succeeded"
         if plan is None:
-            plan, status = fallback_plan(state["question"]), "fallback"
+            plan, status = fallback_plan(state["question"], actions), "fallback"
         plan, adjustments = apply_plan_rules(plan, state["question"])
         agents = [s.agent for s in plan.steps]
         summary = (
@@ -210,7 +213,9 @@ class Agents:
         ready = [
             s
             for s in state["plan"]["steps"]
-            if s["id"] not in done and all(d in done for d in s.get("depends_on", []))
+            if s["agent"] != "action"  # runs after the answer (see action_nodes)
+            and s["id"] not in done
+            and all(d in done for d in s.get("depends_on", []))
         ]
         if not ready:
             return "analyst"
@@ -403,9 +408,10 @@ class Agents:
     ) -> list[ChatMessage]:
         history = _history(state)
         question = state["question"]
-        if not state["plan"]["steps"]:
+        action = next((s for s in state["plan"]["steps"] if s["agent"] == "action"), None)
+        if not [s for s in state["plan"]["steps"] if s["agent"] != "action"]:
             return [
-                ChatMessage(role="system", content=NO_EVIDENCE_PROMPT),
+                ChatMessage(role="system", content=NO_EVIDENCE_PROMPT + _action_note(action)),
                 *history,
                 ChatMessage(role="user", content=question),
             ]
@@ -427,12 +433,25 @@ class Agents:
                 )
         if blocks:
             parts.append("<tables>\n" + "\n\n".join(blocks) + "\n</tables>")
+        if action:
+            parts.append(_action_note(action).strip())
         return [
             ChatMessage(role="system", content=ANALYST_PROMPT),
             *history,
             ChatMessage(role="system", content="\n\n".join(parts)),
             ChatMessage(role="user", content=question),
         ]
+
+
+def _action_note(action: dict | None) -> str:
+    if not action:
+        return ""
+    return (
+        f"\nAfter your answer, the action agent will draft this follow-up for the employee to "
+        f'review: "{action["goal"]}". It is not created until they approve it. Do not say it '
+        "has been created, and do not write out the issue yourself (it is shown separately); "
+        "end with one short sentence saying it is drafted below for approval."
+    )
 
 
 def _sql_request(step: dict, inp: StepInput) -> str:

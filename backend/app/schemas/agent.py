@@ -62,7 +62,52 @@ class AgentCitations(BaseModel):
     tables: list[int] = []
 
 
-RunStatus = Literal["running", "succeeded", "failed"]
+RunStatus = Literal["running", "succeeded", "failed", "needs_approval"]
+
+ActionStatus = Literal["proposed", "approved", "rejected", "executing", "executed", "failed"]
+
+
+class ActionAuditEvent(BaseModel):
+    event: str
+    actor: str
+    at: datetime | str | None
+    detail: dict[str, Any] = {}
+
+
+class ActionOut(BaseModel):
+    """A tool call an agent proposed, its approval, and its outcome."""
+
+    id: uuid.UUID
+    run_id: uuid.UUID
+    server: str
+    tool: str
+    arguments: dict[str, Any]
+    rationale: str | None
+    status: ActionStatus
+    requested_by: str
+    decided_by: str | None
+    decided_at: datetime | None
+    executed_at: datetime | None
+    result: dict[str, Any] | None
+    error: str | None
+    created_at: datetime | None
+    audit: list[ActionAuditEvent] = []
+
+
+class DecisionRequest(BaseModel):
+    decision: Literal["approve", "reject"]
+    # Edited arguments to approve instead of the draft (validated against the tool schema).
+    arguments: dict[str, Any] | None = None
+    comment: str | None = Field(default=None, max_length=500)
+
+
+class ToolOut(BaseModel):
+    name: str
+    server: str
+    description: str
+    input_schema: dict[str, Any]
+    requires_approval: bool
+    permitted: bool  # the caller's groups allow it
 
 
 class AgentRunResponse(BaseModel):
@@ -80,6 +125,7 @@ class AgentRunResponse(BaseModel):
     citations: AgentCitations = AgentCitations()
     invalid_citations: int = 0
     trace: list[TraceEvent] = []
+    actions: list[ActionOut] = []
     error_type: str | None = None
 
 

@@ -17,6 +17,9 @@ class AgentState(TypedDict, total=False):
     citations: dict[str, list[int]]  # {"sources": [...], "tables": [...]}
     invalid_citations: int
     model: str
+    # Action flow: the proposal (id + tool) and the human decision the API resumed with.
+    action: dict[str, Any]
+    decision: dict[str, Any]
     trace: Annotated[list[dict[str, Any]], operator.add]
 
 

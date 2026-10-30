@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field, ValidationError, field_validator, model_v
 from app.analytics.schema import SCHEMA_DOC
 from app.llm.base import ChatMessage
 
-AgentName = Literal["research", "data"]
+AgentName = Literal["research", "data", "action"]
 
 
 class PlanStep(BaseModel):
@@ -50,6 +50,15 @@ class Plan(BaseModel):
         return self
 
     @model_validator(mode="after")
+    def _one_action(self) -> "Plan":
+        actions = [s for s in self.steps if s.agent == "action"]
+        if len(actions) > 1:
+            raise ValueError("at most 1 action step")
+        if actions and actions[0].depends_on:
+            raise ValueError("the action step always runs last; leave its depends_on empty")
+        return self
+
+    @model_validator(mode="after")
     def _dependencies(self) -> "Plan":
         # Only data steps may wait, and only for research steps: the graph stays two waves.
         research = {s.id for s in self.steps if s.agent == "research"}
@@ -73,6 +82,7 @@ decided, or documented, and for explanations of why something happened.
 - "data": writes and runs read-only SQL over the analytics database described below. \
 Use it for counts, rates, trends, medians, comparisons, and anything measured.
 
+{{action_agent}}
 {SCHEMA_DOC}
 Rules:
 - Use the fewest steps that fully answer the question. Most questions need one or two.
@@ -88,11 +98,12 @@ definition), set its "depends_on" to that research step's id: it then runs after
 research and sees its findings. Otherwise leave "depends_on" empty so steps run in parallel.
 - Write research queries as search phrases with the key terms (e.g. "INC-204 verification \
 timeouts root cause remediation").
-- At most {{max_steps}} steps in total.
+- At most {{max_steps}} steps in total.{{action_rule}}
 
 Return only JSON:
-{{{{"reasoning": "<one sentence>", "steps": [{{{{"id": "s1", "agent": "research" | "data", \
-"goal": "<what this step finds out>", "query": "<search query or analytical question>", \
+{{{{"reasoning": "<one sentence>", "steps": [{{{{"id": "s1", \
+"agent": "research" | "data"{{agent_choice}}, "goal": "<what this step finds out>", \
+"query": "<search query or analytical question>", \
 "depends_on": []}}}}]}}}}
 """
 
@@ -111,18 +122,43 @@ _REFERENCES_STANDARD = re.compile(
 _CHAT_ONLY = re.compile(r"^\s*(hi|hello|hey|thanks|thank you|ok|okay|cool)\b[\s!.?]*$", re.I)
 
 
-def planner_messages(question: str, history: list[ChatMessage], max_steps: int) -> list:
+ACTION_AGENT = """\
+- "action": drafts ONE issue in the company tracker (a ticket, task, or follow-up) for a \
+human to review and approve. Nothing is created without approval. Use it only when the \
+employee explicitly asks to create, file, open, log, or raise an issue/ticket/task.
+"""
+ACTION_RULE = """
+- An action step runs last, after the answer is written, and sees all the evidence. \
+Gather the evidence it needs with research/data steps. At most one action step."""
+_ACTION_REQUEST = re.compile(
+    r"\b(create|file|open|log|raise|draft|make|submit)\b.{0,40}\b(issue|ticket|task|"
+    r"follow[- ]?up|bug report)s?\b",
+    re.I,
+)
+
+
+def planner_messages(
+    question: str, history: list[ChatMessage], max_steps: int, actions: bool = False
+) -> list:
     context = ""
     if history:
         recent = "\n".join(f"{m.role}: {m.content[:400]}" for m in history[-4:])
         context = f"Recent conversation (for context only):\n{recent}\n\n"
     return [
-        ChatMessage(role="system", content=PLANNER_PROMPT.format(max_steps=max_steps)),
+        ChatMessage(
+            role="system",
+            content=PLANNER_PROMPT.format(
+                max_steps=max_steps,
+                action_agent=ACTION_AGENT if actions else "",
+                action_rule=ACTION_RULE if actions else "",
+                agent_choice=' | "action"' if actions else "",
+            ),
+        ),
         ChatMessage(role="user", content=f"{context}Question: {question}"),
     ]
 
 
-def parse_plan(raw: str, max_steps: int) -> Plan:
+def parse_plan(raw: str, max_steps: int, actions: bool = False) -> Plan:
     """Validate the model's JSON. Raises ValueError with a message the model can act on."""
     try:
         data = json.loads(raw)
@@ -139,6 +175,8 @@ def parse_plan(raw: str, max_steps: int) -> Plan:
         raise ValueError(problems) from exc
     if len(plan.steps) > max_steps:
         raise ValueError(f"too many steps: {len(plan.steps)} > {max_steps}")
+    if not actions and any(s.agent == "action" for s in plan.steps):
+        raise ValueError('the "action" agent is not available')
     return plan
 
 
@@ -165,7 +203,7 @@ def apply_plan_rules(plan: Plan, question: str) -> tuple[Plan, list[str]]:
     return plan, notes
 
 
-def fallback_plan(question: str) -> Plan:
+def fallback_plan(question: str, actions: bool = False) -> Plan:
     """A deterministic plan when the model cannot plan (offline mode, provider errors)."""
     if _CHAT_ONLY.match(question):
         return Plan(reasoning="Conversational message; no lookup needed.", steps=[])
@@ -177,6 +215,11 @@ def fallback_plan(question: str) -> Plan:
         steps.append(
             PlanStep(id="s2", agent="data", goal="Measure it in the analytics data",
                      query=question[:500])
+        )  # fmt: skip
+    if actions and _ACTION_REQUEST.search(question):
+        steps.append(
+            PlanStep(id=f"s{len(steps) + 1}", agent="action",
+                     goal="Draft a tracker issue for the requested follow-up", query=question[:500])
         )  # fmt: skip
     return Plan(reasoning="Keyword-based plan (the model did not return a valid plan).",
                 steps=steps)  # fmt: skip
