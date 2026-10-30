@@ -1,6 +1,7 @@
 import { type KeyboardEvent, type RefObject, useEffect } from "react";
 
-import { BookIcon, GlobeIcon, PaperclipIcon, SendIcon, StopIcon } from "./Icons";
+import type { Mode } from "../storage";
+import { BookIcon, GlobeIcon, PaperclipIcon, SendIcon, SparkIcon, StopIcon } from "./Icons";
 import { MOD_KEY } from "./Sidebar";
 
 interface Props {
@@ -11,8 +12,8 @@ interface Props {
   onAttach: () => void;
   busy: boolean;
   disabled?: boolean;
-  useKnowledgeBase: boolean;
-  onKnowledgeBaseChange: (on: boolean) => void;
+  mode: Mode;
+  onModeChange: (mode: Mode) => void;
   model?: string;
   variant: "hero" | "dock";
   inputRef: RefObject<HTMLTextAreaElement | null>;
@@ -20,8 +21,33 @@ interface Props {
 
 const MAX_CHARS = 8000;
 
+const MODES: { value: Mode; label: string; icon: typeof BookIcon; title: string; placeholder: string }[] = [
+  {
+    value: "agent",
+    label: "Agent",
+    icon: SparkIcon,
+    title: "Plan the research, search documents and query company data, then answer with citations",
+    placeholder: "Ask a question that needs documents, data, or both…",
+  },
+  {
+    value: "docs",
+    label: "Docs",
+    icon: BookIcon,
+    title: "Answer from company documents only, with citations (fastest)",
+    placeholder: "Ask about Helio's policies, incidents, decisions…",
+  },
+  {
+    value: "general",
+    label: "General",
+    icon: GlobeIcon,
+    title: "Answer from the model's general knowledge only",
+    placeholder: "Ask anything (company documents and data are off)…",
+  },
+];
+
 export function Composer(props: Props) {
-  const { value, busy, disabled, useKnowledgeBase, variant, inputRef } = props;
+  const { value, busy, disabled, mode, variant, inputRef } = props;
+  const current = MODES.find((m) => m.value === mode) ?? MODES[0];
 
   // Refocus after each answer, but not on touch devices, where focusing opens the
   // on-screen keyboard and scrolls the page.
@@ -51,11 +77,7 @@ export function Composer(props: Props) {
         value={value}
         onChange={(e) => props.onChange(e.target.value)}
         onKeyDown={onKeyDown}
-        placeholder={
-          useKnowledgeBase
-            ? "Ask about Helio's policies, incidents, decisions…"
-            : "Ask anything (company documents are off)…"
-        }
+        placeholder={current.placeholder}
         rows={1}
         maxLength={MAX_CHARS}
         aria-label="Message"
@@ -72,29 +94,21 @@ export function Composer(props: Props) {
           >
             <PaperclipIcon width={17} height={17} />
           </button>
-          <div className="mode-switch" role="radiogroup" aria-label="Answer source">
-            <button
-              type="button"
-              role="radio"
-              aria-checked={useKnowledgeBase}
-              className={`mode-option ${useKnowledgeBase ? "active" : ""}`}
-              onClick={() => props.onKnowledgeBaseChange(true)}
-              title="Ground answers in company documents, with citations"
-            >
-              <BookIcon width={14} height={14} />
-              <span>Company docs</span>
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={!useKnowledgeBase}
-              className={`mode-option ${!useKnowledgeBase ? "active" : ""}`}
-              onClick={() => props.onKnowledgeBaseChange(false)}
-              title="Answer from the model's general knowledge only"
-            >
-              <GlobeIcon width={14} height={14} />
-              <span>General</span>
-            </button>
+          <div className="mode-switch" role="radiogroup" aria-label="Answer mode">
+            {MODES.map(({ value: m, label, icon: MIcon, title }) => (
+              <button
+                key={m}
+                type="button"
+                role="radio"
+                aria-checked={mode === m}
+                className={`mode-option ${mode === m ? "active" : ""}`}
+                onClick={() => props.onModeChange(m)}
+                title={title}
+              >
+                <MIcon width={14} height={14} />
+                <span>{label}</span>
+              </button>
+            ))}
           </div>
         </div>
         <div className="composer-right">

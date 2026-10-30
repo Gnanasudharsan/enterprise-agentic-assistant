@@ -2,27 +2,35 @@ import { useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import type { Source } from "../api";
+import type { Source, TableResult } from "../api";
 import type { Message } from "../storage";
+import { AgentSteps } from "./Agent";
+import { DataCard } from "./DataCard";
 import { CheckIcon, CopyIcon, LogoMark, RetryIcon } from "./Icons";
-import { CitationChip, ResearchSteps, SourceStrip } from "./Research";
+import { CitationChip, ResearchSteps, SourceStrip, TableChip } from "./Research";
 
 interface Props {
   message: Message;
   isLast: boolean;
   onRetry: () => void;
   onOpenSource: (source: Source) => void;
+  onOpenTrace: (runId: string) => void;
+  onResume: () => void;
   onCopied: () => void;
 }
 
-/** Turn [S1] markers into links that the Markdown renderer maps to citation chips. */
+/** Turn [S1] / [T1] markers into links that the Markdown renderer maps to chips. */
 function linkCitations(text: string): string {
-  return text.replace(/\[S(\d+)\]/g, "[$1](#cite-$1)");
+  return text.replace(/\[S(\d+)\]/g, "[$1](#cite-$1)").replace(/\[T(\d+)\]/g, "[T$1](#table-$1)");
 }
 
-/** Copy-friendly text: citation markers become plain [1] references. */
+/** Copy-friendly text: citation markers become plain [1] / [T1] references. */
 function plainText(text: string): string {
   return text.replace(/\[S(\d+)\]/g, "[$1]");
+}
+
+function tableAnchor(messageId: string, n: number): string {
+  return `table-${messageId}-${n}`;
 }
 
 function CopyButton({ text, onCopied }: { text: string; onCopied: () => void }) {
@@ -49,7 +57,15 @@ function CopyButton({ text, onCopied }: { text: string; onCopied: () => void }) 
   );
 }
 
-export function MessageView({ message, isLast, onRetry, onOpenSource, onCopied }: Props) {
+export function MessageView({
+  message,
+  isLast,
+  onRetry,
+  onOpenSource,
+  onOpenTrace,
+  onResume,
+  onCopied,
+}: Props) {
   if (message.role === "user") {
     return (
       <div className="msg msg-user">
@@ -61,6 +77,17 @@ export function MessageView({ message, isLast, onRetry, onOpenSource, onCopied }
   const streaming = message.status === "streaming";
   const meta = message.meta;
   const sources = message.sources ?? [];
+  const agent = message.agent;
+  const tables: TableResult[] = agent?.tables ?? [];
+  const tableCitations = agent?.tableCitations ?? [];
+  const openTable = (n: number) => {
+    const el = document.getElementById(tableAnchor(message.id, n));
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.remove("flash");
+    void el.offsetWidth; // restart the animation
+    el.classList.add("flash");
+  };
 
   return (
     <div className="msg msg-assistant">
@@ -68,7 +95,11 @@ export function MessageView({ message, isLast, onRetry, onOpenSource, onCopied }
         <LogoMark width={15} height={15} />
       </div>
       <div className="msg-body">
-        <ResearchSteps message={message} />
+        {agent ? (
+          <AgentSteps message={message} onOpenTrace={() => agent.runId && onOpenTrace(agent.runId)} />
+        ) : (
+          <ResearchSteps message={message} />
+        )}
         <SourceStrip
           sources={sources}
           citations={message.citations ?? []}
@@ -82,6 +113,16 @@ export function MessageView({ message, isLast, onRetry, onOpenSource, onCopied }
               remarkPlugins={[remarkGfm]}
               components={{
                 a: ({ href, children, ...props }) => {
+                  if (href?.startsWith("#table-")) {
+                    const n = Number(href.slice(7));
+                    return (
+                      <TableChip
+                        n={n}
+                        table={tables.find((t) => t.index === n)}
+                        onOpen={() => openTable(n)}
+                      />
+                    );
+                  }
                   if (href?.startsWith("#cite-")) {
                     const n = Number(href.slice(6));
                     return (
@@ -105,12 +146,30 @@ export function MessageView({ message, isLast, onRetry, onOpenSource, onCopied }
           </div>
         )}
 
+        {tables.length > 0 && (
+          <div className="data-cards">
+            {tables.map((t) => (
+              <DataCard
+                key={t.step_id}
+                table={t}
+                id={t.index ? tableAnchor(message.id, t.index) : `table-${message.id}-${t.step_id}`}
+                cited={message.status === "done" && t.index !== null && tableCitations.includes(t.index)}
+              />
+            ))}
+          </div>
+        )}
+
         {message.status === "error" && (
           <div className="msg-error">
             <span>{message.error ?? "Something went wrong."}</span>
+            {isLast && agent?.resumable && (
+              <button type="button" className="text-button" onClick={onResume}>
+                <RetryIcon width={14} height={14} /> Resume from last step
+              </button>
+            )}
             {isLast && (
               <button type="button" className="text-button" onClick={onRetry}>
-                <RetryIcon width={14} height={14} /> Try again
+                <RetryIcon width={14} height={14} /> Start over
               </button>
             )}
           </div>
@@ -130,6 +189,11 @@ export function MessageView({ message, isLast, onRetry, onOpenSource, onCopied }
               >
                 <RetryIcon width={15} height={15} />
               </button>
+            )}
+            {agent?.model && (
+              <span className="msg-meta" title={`Run ${agent.runId}`}>
+                {agent.model.replace(/-\d{4}-\d{2}-\d{2}$/, "")} · multi-agent
+              </span>
             )}
             {meta && (
               <span className="msg-meta" title={`Run ${meta.run_id}`}>

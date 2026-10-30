@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  type AgentHandlers,
+  type AgentRun,
+  AgentRunError,
   ApiError,
   type AssistantInfo,
   checkReady,
   getInfo,
   type HistoryMessage,
   listDocuments,
+  resumeAgent,
   type Source,
+  streamAgent,
   streamChat,
 } from "./api";
 import { type Command, CommandPalette } from "./components/CommandPalette";
@@ -18,6 +23,7 @@ import {
   BookIcon,
   GlobeIcon,
   MenuIcon,
+  SparkIcon,
   MonitorIcon,
   MoonIcon,
   PlusIcon,
@@ -28,11 +34,13 @@ import { KnowledgeBase } from "./components/KnowledgeBase";
 import { MessageView } from "./components/MessageView";
 import { Sidebar } from "./components/Sidebar";
 import { SourcePanel } from "./components/SourcePanel";
+import { TracePanel } from "./components/TracePanel";
 import { type Toast, Toasts } from "./components/Toasts";
 import {
   type Conversation,
   loadConversations,
   type Message,
+  type Mode,
   newId,
   saveConversations,
   titleFrom,
@@ -40,6 +48,21 @@ import {
 import { useTheme } from "./theme";
 
 type Backend = "checking" | "ready" | "degraded" | "offline";
+
+const MODE_KEY = "eaa.mode";
+
+function loadMode(): Mode {
+  try {
+    const v = localStorage.getItem(MODE_KEY);
+    return v === "docs" || v === "general" || v === "agent" ? v : "agent";
+  } catch {
+    return "agent";
+  }
+}
+
+function describeError(err: unknown): string {
+  return err instanceof ApiError ? err.message : "Couldn't reach the backend. Is it running on port 8000?";
+}
 
 /** Completed turns before the new prompt, in the shape the API expects. */
 function toHistory(messages: Message[]): HistoryMessage[] {
@@ -57,7 +80,8 @@ export default function App() {
   const [backend, setBackend] = useState<Backend>("checking");
   const [kbStats, setKbStats] = useState<{ documents: number; passages: number } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [useKnowledgeBase, setUseKnowledgeBase] = useState(true);
+  const [mode, setMode] = useState<Mode>(loadMode);
+  const [traceRun, setTraceRun] = useState<string | null>(null);
   const [openSource, setOpenSource] = useState<{ source: Source; total: number } | null>(null);
   const [kbOpen, setKbOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -105,6 +129,13 @@ export default function App() {
   }, [refreshStats]);
 
   useEffect(() => saveConversations(conversations), [conversations]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(MODE_KEY, mode);
+    } catch {
+      // Per-viewer convenience only.
+    }
+  }, [mode]);
 
   // Follow the stream unless the user has scrolled up to read.
   useEffect(() => {
@@ -127,15 +158,75 @@ export default function App() {
     [],
   );
 
+  /** Live updates of an agent answer, folded into the message as events arrive. */
+  function agentHandlers(convId: string, msgId: string): AgentHandlers {
+    const patch = (fn: (m: Message) => Message) => updateMessage(convId, msgId, fn);
+    const patchAgent = (fn: (a: NonNullable<Message["agent"]>) => Partial<NonNullable<Message["agent"]>>) =>
+      patch((m) => {
+        const a = m.agent ?? { steps: {}, sql: {} };
+        return { ...m, agent: { ...a, ...fn(a) } };
+      });
+    return {
+      onRun: (runId) => patchAgent(() => ({ runId, resumable: false })),
+      onPlan: (plan, planStatus) => patchAgent(() => ({ plan, planStatus })),
+      onStep: (e) => patchAgent((a) => ({ steps: { ...a.steps, [e.step_id ?? e.node]: e } })),
+      onSql: (e) => patchAgent((a) => ({ sql: { ...a.sql, [e.step_id]: e } })),
+      onEvidence: (sources, tables) => {
+        patch((m) => ({ ...m, sources, retrieval: sources.length ? "used" : "no_results" }));
+        patchAgent(() => ({ tables }));
+      },
+      onAnswerReset: () => patch((m) => ({ ...m, content: "" })),
+      onDelta: (text) => patch((m) => ({ ...m, content: m.content + text })),
+    };
+  }
+
+  function finishAgent(convId: string, msgId: string, run: AgentRun) {
+    updateMessage(convId, msgId, (m) => ({
+      ...m,
+      content: run.answer ?? "", // citation-checked final text replaces the streamed draft
+      status: "done",
+      sources: run.sources,
+      citations: run.citations.sources,
+      retrieval: run.sources.length ? "used" : "no_results",
+      agent: {
+        ...(m.agent ?? { steps: {}, sql: {} }),
+        runId: run.run_id,
+        plan: run.plan ?? undefined,
+        tables: run.tables,
+        tableCitations: run.citations.tables,
+        trace: run.trace,
+        latencyMs: run.latency_ms ?? undefined,
+        model: run.model,
+        invalidCitations: run.invalid_citations,
+        resumable: false,
+      },
+    }));
+  }
+
+  function failAgent(convId: string, msgId: string, err: unknown, aborted: boolean) {
+    updateMessage(convId, msgId, (m) =>
+      aborted
+        ? { ...m, status: "stopped" }
+        : {
+            ...m,
+            status: "error",
+            error: describeError(err),
+            agent: m.agent && { ...m.agent, resumable: err instanceof AgentRunError && !!err.runId },
+          },
+    );
+  }
+
   async function send(prompt: string, prior: Message[], conv: Conversation) {
-    const kb = useKnowledgeBase;
+    const sendMode = mode;
     const userMsg: Message = { id: newId(), role: "user", content: prompt, status: "done" };
     const botMsg: Message = {
       id: newId(),
       role: "assistant",
       content: "",
       status: "streaming",
-      kb,
+      kb: sendMode !== "general",
+      mode: sendMode,
+      agent: sendMode === "agent" ? { steps: {}, sql: {} } : undefined,
     };
     const next: Conversation = {
       ...conv,
@@ -152,10 +243,20 @@ export default function App() {
     const controller = new AbortController();
     abortRef.current = controller;
     try {
+      if (sendMode === "agent") {
+        const run = await streamAgent(
+          prompt,
+          toHistory(prior),
+          agentHandlers(conv.id, botMsg.id),
+          controller.signal,
+        );
+        finishAgent(conv.id, botMsg.id, run);
+        return;
+      }
       const result = await streamChat(
         prompt,
         toHistory(prior),
-        kb,
+        sendMode === "docs",
         {
           onSources: (retrieval, sources) =>
             updateMessage(conv.id, botMsg.id, (m) => ({ ...m, retrieval, sources })),
@@ -175,15 +276,33 @@ export default function App() {
         meta,
       }));
     } catch (err) {
-      if (controller.signal.aborted) {
+      if (sendMode === "agent") failAgent(conv.id, botMsg.id, err, controller.signal.aborted);
+      else if (controller.signal.aborted) {
         updateMessage(conv.id, botMsg.id, (m) => ({ ...m, status: "stopped" }));
       } else {
-        const error =
-          err instanceof ApiError
-            ? err.message
-            : "Couldn't reach the backend. Is it running on port 8000?";
-        updateMessage(conv.id, botMsg.id, (m) => ({ ...m, status: "error", error }));
+        updateMessage(conv.id, botMsg.id, (m) => ({ ...m, status: "error", error: describeError(err) }));
       }
+    } finally {
+      abortRef.current = null;
+      setBusy(false);
+    }
+  }
+
+  /** Continue a failed agent run from its last checkpoint, in the same message. */
+  async function resume() {
+    if (!active || busy) return;
+    const msg = active.messages[active.messages.length - 1];
+    const runId = msg?.agent?.runId;
+    if (!msg || !runId) return;
+    const convId = active.id;
+    updateMessage(convId, msg.id, (m) => ({ ...m, status: "streaming", error: undefined }));
+    setBusy(true);
+    const controller = new AbortController();
+    abortRef.current = controller;
+    try {
+      finishAgent(convId, msg.id, await resumeAgent(runId, agentHandlers(convId, msg.id), controller.signal));
+    } catch (err) {
+      failAgent(convId, msg.id, err, controller.signal.aborted);
     } finally {
       abortRef.current = null;
       setBusy(false);
@@ -251,12 +370,9 @@ export default function App() {
         icon: <UploadIcon width={15} height={15} />,
         run: () => setKbOpen(true),
       },
-      {
-        id: "mode",
-        label: useKnowledgeBase ? "Switch to general answers" : "Switch to company documents",
-        icon: useKnowledgeBase ? <GlobeIcon width={15} height={15} /> : <BookIcon width={15} height={15} />,
-        run: () => setUseKnowledgeBase((v) => !v),
-      },
+      { id: "agent", label: "Mode: research agent (documents + data)", icon: <SparkIcon width={15} height={15} />, run: () => setMode("agent") },
+      { id: "docs", label: "Mode: company documents only", icon: <BookIcon width={15} height={15} />, run: () => setMode("docs") },
+      { id: "general", label: "Mode: general answers", icon: <GlobeIcon width={15} height={15} />, run: () => setMode("general") },
       { id: "light", label: "Theme: light", icon: <SunIcon width={15} height={15} />, run: () => setTheme("light") },
       { id: "dark", label: "Theme: dark", icon: <MoonIcon width={15} height={15} />, run: () => setTheme("dark") },
       {
@@ -266,7 +382,7 @@ export default function App() {
         run: () => setTheme("system"),
       },
     ],
-    [newChat, setTheme, useKnowledgeBase],
+    [newChat, setTheme],
   );
 
   const statusLabel =
@@ -290,8 +406,8 @@ export default function App() {
       onAttach={() => setKbOpen(true)}
       busy={busy}
       disabled={backend === "offline"}
-      useKnowledgeBase={useKnowledgeBase}
-      onKnowledgeBaseChange={setUseKnowledgeBase}
+      mode={mode}
+      onModeChange={setMode}
       model={info?.model}
     />
   );
@@ -382,6 +498,8 @@ export default function App() {
                   onOpenSource={(source) =>
                     setOpenSource({ source, total: m.sources?.length ?? 0 })
                   }
+                  onOpenTrace={setTraceRun}
+                  onResume={resume}
                   onCopied={() => notify("Answer copied")}
                 />
               ))}
@@ -418,6 +536,7 @@ export default function App() {
         total={openSource?.total ?? 0}
         onClose={() => setOpenSource(null)}
       />
+      <TracePanel runId={traceRun} onClose={() => setTraceRun(null)} />
       <KnowledgeBase
         open={kbOpen}
         onClose={() => setKbOpen(false)}

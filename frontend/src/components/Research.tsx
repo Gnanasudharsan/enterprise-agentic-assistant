@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 
-import type { Source } from "../api";
+import type { Source, TableResult } from "../api";
 import { docType, sectionLabel } from "../docTypes";
 import type { Message } from "../storage";
 import { CheckIcon, ChevronIcon } from "./Icons";
@@ -197,6 +197,52 @@ export function CitationChip({
           <span className="cite-card-snippet">{source.snippet.replace(/\*\*/g, "")}</span>
           <span className="cite-card-hint" style={{ display: "block" }}>
             Click to open the full passage
+          </span>
+        </span>
+      )}
+    </span>
+  );
+}
+
+export function TableChip({
+  n,
+  table,
+  onOpen,
+}: {
+  n: number;
+  table: TableResult | undefined;
+  onOpen: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span
+      className={`cite-wrap ${open ? "open" : ""}`}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        className="cite cite-table"
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onClick={onOpen}
+        aria-label={table ? `Data table ${n}: ${table.title}` : `Data table ${n}`}
+      >
+        T{n}
+      </button>
+      {open && table && (
+        <span className="cite-card" role="tooltip">
+          <span className="cite-card-top">
+            <span className="mono">T{n}</span> · {table.origin === "certified" ? "Reviewed query" : "Generated SQL"}
+          </span>
+          <span className="cite-card-title" style={{ display: "block" }}>
+            {table.title}
+          </span>
+          <span className="cite-card-loc" style={{ display: "block" }}>
+            {table.row_count} rows from {table.sql?.match(/analytics\.\w+/g)?.filter((v, i, a) => a.indexOf(v) === i).join(", ")}
+          </span>
+          <span className="cite-card-hint" style={{ display: "block" }}>
+            Click to jump to the data
           </span>
         </span>
       )}
