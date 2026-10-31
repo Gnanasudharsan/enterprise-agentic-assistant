@@ -5,6 +5,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-31 (Phase 6: Deployment & presentation)
+
+### Added
+- Production `Dockerfile`: the API serves the built frontend (`STATIC_DIR`, SPA fallback,
+  immutable asset caching); CI builds it and smoke-tests the gate, routes, and logs.
+- Public-demo protections: `ACCESS_CODE` (constant-time check, rate-limited guesses,
+  `GET/POST /api/v1/access`, access screen in the UI), per-client `RATE_LIMIT_REQUESTS`
+  with `FORWARDED_HOPS`-aware client addresses, `DAILY_TOKEN_BUDGET` with an offline-model
+  fallback (`budget_exhausted` in `/api/v1/info`), and security headers.
+- Structured JSON logs (`LOG_FORMAT=json`) for Cloud Logging, linked to traces; one access
+  line per request; Cloud Trace export (`TRACING=gcp`, extra `[gcp]`).
+- Google Cloud scripts: `deploy/gcp/setup.sh` (project, Cloud SQL, Artifact Registry, Secret
+  Manager, least-privilege service account), `deploy.sh`, `monitoring.sh`, `teardown.sh`.
+- Architecture diagram, screenshots, demo script (`docs/DEMO.md`), ADR 0007.
+
+### Changed
+- Database pool sizes are configurable (`DB_POOL_SIZE`) for small Cloud SQL tiers.
+
 ## [0.5.0] - 2026-10-31 (Phase 5: Evaluation, reliability & security)
 
 ### Added

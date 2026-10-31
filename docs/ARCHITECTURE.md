@@ -183,6 +183,14 @@ Evaluation suites (`evals/`):
 4. **Retrieved content ↔ LLM:** retrieved text is untrusted. Plans are made before retrieval, so a document cannot add steps. Instruction-like paragraphs are redacted and delimiter tags are escaped before passages reach a prompt. Output is sanitized (no images, no links to unlisted hosts) whether or not the model was fooled ([ADR 0006](adr/0006-prompt-injection-defense-in-depth.md)).
 5. **Backend ↔ tool servers:** each MCP server is a separate process holding only its own credentials.
 
-## 7. Decisions
+## 7. Deployment (Phase 6)
+
+![Deployment architecture](images/architecture.svg)
+
+The API serves the built frontend from a single container on Cloud Run, which scales to zero and runs at most one instance. It connects to Cloud SQL (PostgreSQL 16 + pgvector) over the Unix-socket connector and reads its secrets from Secret Manager.
+
+Before any route runs, `ProtectionMiddleware` checks the access code and applies per-client rate limits to model-calling endpoints. `BudgetedLLM` switches to the offline model once the day's token budget is spent. Logs are JSON lines linked to their Cloud Trace span. Scripts and costs: [deploy/gcp/README.md](../deploy/gcp/README.md); decision: [ADR 0007](adr/0007-cloud-run-deployment.md).
+
+## 8. Decisions
 
 Significant decisions are recorded as ADRs in [`adr/`](adr/).
