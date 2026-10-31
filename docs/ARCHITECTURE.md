@@ -135,6 +135,33 @@ sequenceDiagram
 
 The model can only produce a *draft*. Approval, permission, integrity, and execution are all backend code paths, and the only route from a draft to a tool call is the decision endpoint. See [ADR 0004](adr/0004-mcp-actions-behind-approval.md).
 
+### Observability and evaluation (Phase 5, implemented)
+
+Every request is one OpenTelemetry trace (`TRACING=otlp`, Jaeger bundled under the Compose `tracing` profile):
+
+```
+POST /api/v1/agent/run                           FastAPI instrumentation
+├─ agent.supervisor ── chat gpt-4.1-mini         gen_ai.* attributes, input/output tokens
+├─ agent.research ──── retrieval.search ── chat  (reranker)
+├─ agent.data ──────── chat (SQL) ── sql.execute db.response.returned_rows
+├─ agent.coordinator
+├─ agent.analyst ───── chat (streamed answer)
+└─ agent.propose_action ── mcp.call_tool search_issues ── chat (draft)
+```
+
+Spans carry ids, sizes, timings, and token counts, never prompts, answers, or rows. An approval pause is recorded as `agent.interrupted`, not as an error. LangSmith can trace the same graph independently (`LANGSMITH_TRACING=true`).
+
+`MeteredLLM` wraps the model client and adds every call's tokens to the current request's meter (a context variable shared by concurrent graph nodes). `/chat` and `/agent/run` return `usage` (`llm_calls`, tokens), which is stored per run, and the benchmark prices it.
+
+Evaluation suites (`evals/`):
+
+| Suite | What it measures | Report |
+| --- | --- | --- |
+| `retrieval_eval.py` | Hit@1, Recall@5, MRR, ACL leaks for keyword / vector / hybrid / LLM and cross-encoder reranking | `retrieval-*.md` |
+| `benchmark.py` | 32 held-out tasks × 3 systems: task success, recall, citation validity, judged groundedness, latency, cost | `benchmark-*.md` |
+| `security_eval.py` | Direct and indirect prompt injection, API-level unauthorized actions, integrity | `security-*.md` |
+| `agent_eval.py`, `answer_eval.py` | Regression suites from Phases 2–3 | `agents-*.md`, `answers-*.md` |
+
 ## 5. Data model
 
 | Table | Purpose |
@@ -142,7 +169,7 @@ The model can only produce a *draft*. Approval, permission, integrity, and execu
 | `documents` | Source document metadata, version, ACL, content hash, embedding model *(implemented)* |
 | `chunks` | Chunk text, heading path, generated `tsvector`, `vector(1536)`, FK to document *(implemented)* |
 | `chat_runs` | One row per run: status, latency, tokens, retrieved chunks, validated citations *(implemented)* |
-| `agent_runs` | One row per multi-agent run: plan, trace, sources, tables (SQL + rows), citations, latency *(implemented)* |
+| `agent_runs` | One row per multi-agent run: plan, trace, sources, tables (SQL + rows), citations, latency, model calls and tokens *(implemented)* |
 | `checkpoint*` | LangGraph state after every step, created by `AsyncPostgresSaver.setup()` *(implemented)* |
 | `analytics.*` | `customers`, `onboarding_events`, `verification_checks`, `support_tickets` (synthetic, read via `analytics_reader`) *(implemented)* |
 | `agent_actions` | Proposed tool calls: tool, arguments + approved hash, status, decided by, result *(implemented)* |
@@ -152,9 +179,9 @@ The model can only produce a *draft*. Approval, permission, integrity, and execu
 
 1. **User ↔ backend:** authenticated; every request carries a user and role context.
 2. **LLM ↔ tools:** the LLM only *proposes* tool calls. The backend validates arguments against the tool schema, checks permissions at approval and execution, binds approvals to an argument hash, and runs each approved call at most once.
-5. **Backend ↔ tool servers:** each MCP server is a separate process holding only its own credentials.
 3. **Data Agent ↔ database:** model SQL is validated, then executed read-only as `analytics_reader`, which can only see the analytics schema.
-4. **Retrieved content ↔ LLM:** retrieved text is treated as untrusted data, which is why prompt-injection tests are part of the eval suite.
+4. **Retrieved content ↔ LLM:** retrieved text is untrusted. Plans are made before retrieval, so a document cannot add steps. Instruction-like paragraphs are redacted and delimiter tags are escaped before passages reach a prompt. Output is sanitized (no images, no links to unlisted hosts) whether or not the model was fooled ([ADR 0006](adr/0006-prompt-injection-defense-in-depth.md)).
+5. **Backend ↔ tool servers:** each MCP server is a separate process holding only its own credentials.
 
 ## 7. Decisions
 

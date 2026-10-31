@@ -11,7 +11,7 @@ on this repository.
 - **Least privilege:** the Data Agent uses a read-only DB role restricted to approved schemas, and tool tokens are scoped to the minimum required.
 - **Backend-enforced approvals:** high-impact actions can't execute without a recorded human approval, regardless of LLM output.
 - **No secrets in prompts or agent messages.** Credentials stay in server-side configuration.
-- **Untrusted retrieved content:** documents and tool outputs are treated as data, never as instructions.
+- **Untrusted retrieved content:** documents and tool outputs are treated as data, never as instructions. Defenses don't rely on the model obeying that (see [ADR 0006](docs/adr/0006-prompt-injection-defense-in-depth.md)).
 - **SQL guardrails:** statement allow-list (SELECT only), timeouts, row limits, and validation before execution.
 - **Auditability:** every proposed, approved, rejected, and executed action is logged.
 
@@ -27,6 +27,10 @@ on this repository.
 | Credentials isolation | The tracker MCP server is a subprocess that receives only tracker settings (no model key, no DB URL); the model sees tool schemas only | `test_subprocess_gets_only_tracker_settings` |
 | Least-privilege tokens | GitHub backend expects a fine-grained token for one repository with only "Issues: read and write" | docs |
 | Audit log | Append-only `action_audit`: proposed, edited, approved, rejected, denied, executing, executed, failed (actor + time + detail) | `GET /api/v1/actions` |
+| No data exfiltration through output | Answers and drafted issues lose images; links to hosts outside `ANSWER_LINK_HOSTS` keep only their text; bare URLs are not auto-linked. The UI never renders images and its CSP blocks remote ones | `test_grounding.py` (sanitizer, chat and agent paths), security eval P06 / I01–I02 |
+| Untrusted retrieved content | Instruction-like paragraphs in passages are redacted; delimiter tags are escaped so a document cannot close its evidence block; evidence is followed by a reminder | `test_grounding.py` (incl. no false positives on the corpus), security eval I01–I05 |
+| Plans can't be changed by documents | The supervisor plans from the question before retrieval; actions need an explicit request | security eval (0 unrequested proposals) |
+| Live attack suite | 20 direct and indirect injections + 9 API-level unauthorized-action attempts against the running system, with integrity checks | [`evals/security_eval.py`](evals/security_eval.py), [report](evals/reports/security-2026-10-31.md) |
 
 ## Scope
 

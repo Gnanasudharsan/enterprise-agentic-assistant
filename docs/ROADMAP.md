@@ -80,16 +80,19 @@ Legend: ✅ done · ⏳ in progress · ⬜ planned
 
 **Acceptance (verified):** "What caused INC-204? Create a follow-up issue…" answers with citations, drafts an issue (with a duplicate check), pauses as `needs_approval`, creates the issue only after approval (offline in CI via the local tracker), and records the full audit trail; a second approval is refused.
 
-## Phase 5 — Evaluation, reliability & security ⏳
+## Phase 5 — Evaluation, reliability & security ✅
 
 **Deliverable:** Repeatable evaluation reports comparing baseline RAG with the agentic system.
 
-- [ ] Benchmark dataset of cross-source tasks with known answers
-- [ ] Metrics: Recall@5, citation validity, groundedness, task success, latency (p50/p95), cost
-- [ ] Three-way comparison: vector RAG vs. hybrid + rerank vs. multi-agent
-- [ ] Prompt-injection test suite
-- [ ] Unauthorized-action test suite (target: 0 successes)
-- [ ] Tracing (LangSmith / OpenTelemetry)
+- [x] Held-out benchmark: 32 tasks (single- and multi-document, data, cross-source, restricted, unanswerable) with answers computed from the seeded data; expectations pinned by tests
+- [x] Metrics: task success, Recall@5, evidence recall, citation validity, judged groundedness (`gpt-4.1` judge), safety, latency p50/p95, model calls, tokens, and cost per task (metered per request)
+- [x] Three-way comparison through the production API: vector RAG vs. hybrid + LLM rerank vs. multi-agent; the first (held-out) run and the post-fix run are both published
+- [x] Prompt-injection suite: 13 direct and indirect attacks (poisoned documents ingested for the run) against chat and agents, 20 runs; defense in depth (output sanitizing, injection redaction, delimiter escaping, evidence reminder, CSP)
+- [x] Unauthorized-action suite: 9 live API attempts plus the 15 unit scenarios; **0 unauthorized executions**
+- [x] Tracing: OpenTelemetry spans for requests, graph nodes, model calls (with tokens), retrieval, SQL, and MCP calls; Jaeger via Compose profile; LangSmith optional
+- [x] Cross-encoder comparison (carried over from Phase 2): `ms-marco-MiniLM-L-6-v2` and `bge-reranker-base` vs. the LLM reranker; found and fixed rerankers missing the heading path
+
+**Acceptance (verified):** `evals/benchmark.py` reproduces the three-way report, `evals/security_eval.py` the security report, and every report records its model, judge, prices, and date.
 
 ## Phase 6 — Deployment & presentation ⬜
 
