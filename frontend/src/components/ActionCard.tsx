@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { untrustedComponents } from "./markdown";
 
 import type { AgentAction, IssueArguments, ToolInfo } from "../api";
 import { CheckIcon, CloseIcon, PenIcon, ShieldIcon, TicketIcon } from "./Icons";
@@ -137,7 +138,7 @@ export function ActionCard({ action, tool, busy, onDecide }: Props) {
             ))}
           </div>
           <div className={`action-body markdown ${expanded ? "expanded" : ""}`}>
-            <Markdown remarkPlugins={[remarkGfm]}>{args.body}</Markdown>
+            <Markdown remarkPlugins={[remarkGfm]} components={untrustedComponents}>{args.body}</Markdown>
           </div>
           {args.body.length > 400 && (
             <button type="button" className="text-button" onClick={() => setExpanded((v) => !v)}>

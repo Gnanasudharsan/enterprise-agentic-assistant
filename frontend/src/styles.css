@@ -1440,6 +1440,7 @@ kbd {
 }
 @keyframes rise { from { opacity: 0; transform: translateY(4px); } }
 .data-card-failed { background: var(--bg-elevated); border-style: dashed; }
+.data-card-missing { background: var(--bg-elevated); }
 .data-head { display: flex; align-items: center; gap: 10px; padding: 12px 12px 10px 14px; }
 .data-head-text { flex: 1; min-width: 0; }
 .data-index {
@@ -1761,4 +1762,10 @@ button.chip.on { border-color: color-mix(in srgb, var(--accent) 50%, var(--borde
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* Alt text of an image that was not rendered (untrusted markdown). */
+.img-removed {
+  color: var(--muted);
+  font-style: italic;
 }

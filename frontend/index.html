@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Images only from this origin or inline: rendered model output cannot beacon data out. -->
+    <meta http-equiv="Content-Security-Policy" content="img-src 'self' data: blob:" />
     <title>Helio Assistant</title>
     <meta name="theme-color" content="#0f1013" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
