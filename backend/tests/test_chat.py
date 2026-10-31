@@ -143,6 +143,7 @@ def test_info_reports_model_and_demo_mode(client):
         "provider": "stub",
         "model": "stub-model",
         "demo_mode": False,
+        "budget_exhausted": False,
         "embedding_model": "hashing-v1",
         "user_groups": ["all-employees"],
     }

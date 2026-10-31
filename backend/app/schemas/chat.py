@@ -78,6 +78,8 @@ class AssistantInfo(BaseModel):
     provider: str
     model: str
     demo_mode: bool
+    # Today's token budget is spent, so answers come from the offline model until 00:00 UTC.
+    budget_exhausted: bool = False
     embedding_model: str
     # The caller's access groups (what the knowledge base will show them).
     user_groups: list[str]

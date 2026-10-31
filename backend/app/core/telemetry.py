@@ -3,8 +3,9 @@ retrieval, SQL, and MCP tool calls.
 
 Off by default (the API's no-op tracer costs nothing). `TRACING=otlp` exports over
 OTLP/HTTP to `OTEL_EXPORTER_OTLP_ENDPOINT` (Jaeger, Grafana Tempo, Honeycomb, ...);
-`TRACING=console` prints spans, for debugging. Span attributes carry ids, sizes,
-timings, and token counts, never prompts, answers, or query results.
+`TRACING=gcp` exports to Google Cloud Trace; `TRACING=console` prints spans, for
+debugging. Span attributes carry ids, sizes, timings, and token counts, never prompts,
+answers, or query results.
 """
 
 import functools
@@ -41,6 +42,11 @@ def setup_tracing(app: FastAPI, settings: Settings) -> None:
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
         exporter = OTLPSpanExporter()  # reads OTEL_EXPORTER_OTLP_ENDPOINT / _HEADERS
+    elif settings.tracing == "gcp":
+        # Google Cloud Trace with the service's own credentials (pip install ".[gcp]").
+        from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter
+
+        exporter = CloudTraceSpanExporter()
     else:
         exporter = ConsoleSpanExporter()
     provider.add_span_processor(BatchSpanProcessor(exporter))

@@ -60,8 +60,15 @@ def _record(span: trace.Span, result: LLMResult) -> None:
 class MeteredLLM:
     def __init__(self, inner: LLMClient) -> None:
         self.inner = inner
-        self.provider = inner.provider
-        self.model = inner.model
+
+    # Read through: a budgeted client switches to the offline model when the budget is spent.
+    @property
+    def provider(self) -> str:
+        return self.inner.provider
+
+    @property
+    def model(self) -> str:
+        return self.inner.model
 
     def __getattr__(self, name: str) -> Any:  # test stubs expose extra attributes
         return getattr(self.inner, name)
