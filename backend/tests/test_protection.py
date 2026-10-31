@@ -150,3 +150,14 @@ def test_budget_is_loaded_from_todays_runs(settings, retriever, sql, chat_runs):
     asyncio.run(budget.load(build_sessionmaker(engine)))
     asyncio.run(engine.dispose())
     assert budget.used == 12
+
+
+@pytest.mark.parametrize("size", [1, 3, 10])
+def test_checkpoint_pool_accepts_small_sizes(size):
+    from app.agents.graph import checkpoint_pool
+    from app.core.config import Settings
+
+    settings = Settings(_env_file=None, database_url="postgresql+asyncpg://u:p@/db?host=/tmp",
+                        db_pool_size=size)  # fmt: skip
+    pool = checkpoint_pool(settings)  # not opened: no connection is made
+    assert (pool.min_size, pool.max_size) == (1, size)
