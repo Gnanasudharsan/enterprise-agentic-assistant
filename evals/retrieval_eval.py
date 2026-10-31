@@ -4,9 +4,12 @@
 Usage (from backend/, against a scratch database; the corpus is re-ingested per embedder):
 
     DATABASE_URL=postgresql+asyncpg://... .venv/bin/python ../evals/retrieval_eval.py [--rerank]
+        [--cross-encoder [MODEL]]
 
 Configurations: {offline hashing, OpenAI} embeddings x {vector, keyword, hybrid} retrieval,
-plus hybrid + LLM reranking with --rerank. OpenAI rows run only when an API key is set.
+plus hybrid + LLM reranking with --rerank and hybrid + a local cross-encoder
+(default cross-encoder/ms-marco-MiniLM-L-6-v2) with --cross-encoder. OpenAI rows run only
+when an API key is set.
 Writes evals/reports/retrieval-<date>.md and .json.
 """
 
@@ -160,7 +163,9 @@ async def ingest(session, embedder: Embedder) -> None:
     print(f"  corpus ready for {embedder.model} ({changed} documents (re)embedded)")
 
 
-def report(results: list[ConfigResult], settings: Settings, gold: list[dict]) -> str:
+def report(
+    results: list[ConfigResult], settings: Settings, gold: list[dict], cross_encoders: list[str]
+) -> str:
     today = date.today().isoformat()
     lines = [
         f"# Retrieval evaluation — {today}",
@@ -204,8 +209,8 @@ def report(results: list[ConfigResult], settings: Settings, gold: list[dict]) ->
         f"- Its misses (no relevant passage in the top {K}): {', '.join(misses) or 'none'}.",
         "- **Caveats:** the corpus is small (12 synthetic documents, ~50 passages) and the gold set "
         "was written by the same author as the corpus, so absolute numbers are optimistic. The "
-        "comparison *between* configurations is the useful signal; a larger, independently "
-        "written benchmark is planned for Phase 5.",
+        "comparison *between* configurations is the useful signal. The end-to-end benchmark "
+        "(`evals/benchmark.py`) adds held-out tasks written after the system was built.",
         "- `hashing-v1` is an offline lexical embedder used for CI and no-key runs; it is not "
         "a semantic model, so its vector rows are a lower bound.",
         f"- Settings: candidates per channel {settings.retrieval_candidates}, RRF k={settings.rrf_k}, "
@@ -214,12 +219,31 @@ def report(results: list[ConfigResult], settings: Settings, gold: list[dict]) ->
         "(a network call for OpenAI embeddings) and reranking when enabled.",
         "",
         f"Reproduce: `cd backend && DATABASE_URL=... .venv/bin/python ../evals/retrieval_eval.py"
-        f"{' --rerank' if any(r.rerank for r in results) else ''}`",
+        f"{' --rerank' if any(r.name == 'Hybrid + LLM rerank' for r in results) else ''}"
+        + (f" --cross-encoder {','.join(cross_encoders)}" if cross_encoders else "")
+        + "`",
     ]
     return "\n".join(lines) + "\n"
 
 
-async def main(rerank: bool) -> None:
+class CrossEncoderReranker:
+    """A local cross-encoder (sentence-transformers), compared against the LLM reranker.
+
+    Needs `pip install sentence-transformers` (pulls PyTorch); not a backend dependency.
+    """
+
+    def __init__(self, model: str) -> None:
+        from sentence_transformers import CrossEncoder
+
+        self.model = model
+        self._encoder = CrossEncoder(model, max_length=512)
+
+    async def score(self, query: str, passages: list[str]) -> list[float]:
+        pairs = [(query, p) for p in passages]
+        return [float(s) for s in await asyncio.to_thread(self._encoder.predict, pairs)]
+
+
+async def main(rerank: bool, cross_encoders: list[str]) -> None:
     settings = Settings()
     gold = [json.loads(line) for line in GOLD.read_text().splitlines() if line.strip()]
     engine = build_engine(settings.sqlalchemy_url)
@@ -279,6 +303,21 @@ async def main(rerank: bool) -> None:
                     print(
                         f"  {'Hybrid + LLM rerank':<20} recall@5={results[-1].recall_at_k:.0%}  mrr={results[-1].mrr:.3f}"
                     )
+                for model in cross_encoders if embedder.model != HashingEmbedder.model else []:
+                    retriever = Retriever(
+                        embedder,
+                        candidates=settings.retrieval_candidates,
+                        rrf_k=settings.rrf_k,
+                        reranker=CrossEncoderReranker(model),
+                    )
+                    qs = await evaluate(
+                        session, retriever, gold, restricted, mode="hybrid", rerank=True
+                    )
+                    name = f"Hybrid + {model.split('/')[-1]}"
+                    results.append(ConfigResult(name, embedder.model, "hybrid", True, qs))
+                    print(
+                        f"  {name:<20} recall@5={results[-1].recall_at_k:.0%}  mrr={results[-1].mrr:.3f}"
+                    )
     finally:
         for e in embedders:
             await e.aclose()
@@ -288,7 +327,7 @@ async def main(rerank: bool) -> None:
 
     REPORTS.mkdir(parents=True, exist_ok=True)
     stem = REPORTS / f"retrieval-{date.today().isoformat()}"
-    stem.with_suffix(".md").write_text(report(results, settings, gold))
+    stem.with_suffix(".md").write_text(report(results, settings, gold, cross_encoders))
     stem.with_suffix(".json").write_text(
         json.dumps(
             [
@@ -322,4 +361,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--rerank", action="store_true", help="Also evaluate hybrid + LLM reranking"
     )
-    asyncio.run(main(parser.parse_args().rerank))
+    parser.add_argument(
+        "--cross-encoder",
+        metavar="MODELS",
+        nargs="?",
+        const="cross-encoder/ms-marco-MiniLM-L-6-v2",
+        help="Also evaluate hybrid + local cross-encoders, comma-separated Hugging Face ids "
+        "(default: ms-marco-MiniLM-L-6-v2; needs sentence-transformers)",
+    )
+    args = parser.parse_args()
+    asyncio.run(main(args.rerank, args.cross_encoder.split(",") if args.cross_encoder else []))

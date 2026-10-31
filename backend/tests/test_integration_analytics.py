@@ -54,6 +54,53 @@ async def test_seed_is_deterministic_and_matches_the_documents(analytics_engine)
     assert august < 3.0 < september
 
 
+# Expected numbers of the data and cross-source tasks in datasets/evaluation/benchmark.jsonl.
+BENCHMARK_FACTS = [
+    (
+        "SELECT string_agg(region || '=' || n, ',' ORDER BY region) "
+        "FROM (SELECT region, count(*) n "
+        "FROM analytics.customers GROUP BY 1) r",
+        "APAC=37,EMEA=90,NA=168",
+    ),
+    ("SELECT round(avg(arr_usd)) FROM analytics.customers WHERE plan = 'Enterprise'", 240066),
+    ("SELECT count(*) FROM analytics.customers WHERE went_live_on IS NULL", 13),
+    (
+        "SELECT round(100.0 * avg((result = 'timeout')::int), 1) "
+        "FROM analytics.verification_checks "
+        "WHERE requested_at >= '2026-09-01' AND requested_at < '2026-10-01'",
+        11.5,
+    ),
+    (
+        "SELECT count(*) FROM analytics.support_tickets WHERE tag = 'kyb-verification' AND "
+        "priority = 'P2' AND created_at >= '2026-09-01' AND created_at < '2026-10-01'",
+        37,
+    ),
+    (
+        "SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY first_response_minutes) "
+        "FROM analytics.support_tickets WHERE priority = 'P1'",
+        13,
+    ),
+    (
+        "SELECT count(*) FILTER (WHERE onboarding_business_days <= 10) FROM analytics.customers "
+        "WHERE plan = 'Enterprise' AND contract_signed_on >= '2026-09-01' "
+        "AND contract_signed_on < '2026-10-01'",
+        10,
+    ),
+    (
+        "SELECT round(100.0 * count(*) FILTER (WHERE onboarding_business_days <= 3) / count(*), 1) "
+        "FROM analytics.customers WHERE plan = 'Standard' AND contract_signed_on >= '2026-09-01' "
+        "AND contract_signed_on < '2026-10-01'",
+        25.9,
+    ),
+]
+
+
+@pytest.mark.parametrize(("sql", "expected"), BENCHMARK_FACTS)
+async def test_benchmark_expectations_match_the_seed(analytics_engine, sql, expected):
+    value = await scalar(analytics_engine, sql)
+    assert (float(value) if isinstance(expected, int | float) else value) == expected
+
+
 async def test_reader_role_cannot_escape_the_analytics_schema(analytics_engine):
     executor = SQLExecutor(analytics_engine, timeout_ms=500, max_rows=5)
     # These bypass the validator on purpose: the database must refuse them on its own.
