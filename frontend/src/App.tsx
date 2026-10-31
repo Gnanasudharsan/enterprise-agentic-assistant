@@ -518,7 +518,9 @@ export default function App() {
           </button>
           <div className="topbar-title">{hasThread ? active?.title : ""}</div>
           <div className="topbar-right">
-            {info?.demo_mode && <span className="badge badge-warn">Demo mode</span>}
+            {info?.demo_mode && (
+              <span className="badge badge-warn">{info.budget_exhausted ? "Budget reached" : "Demo mode"}</span>
+            )}
             <span className={`status status-${backend}`} title={`Backend: ${backend}`}>
               <span className="status-dot" />
               {statusLabel}
@@ -534,7 +536,13 @@ export default function App() {
           </div>
         </header>
 
-        {info?.demo_mode && (
+        {info?.budget_exhausted && (
+          <div className="banner">
+            <strong>Today's demo budget is used up.</strong> Answers come from the offline model
+            (placeholders over real retrieval) until 00:00 UTC.
+          </div>
+        )}
+        {info?.demo_mode && !info.budget_exhausted && (
           <div className="banner">
             <strong>No language model connected.</strong> Retrieval works, but answers are
             placeholders. Set <code>OPENAI_API_KEY</code> (or <code>LLM_API_KEY</code> in{" "}

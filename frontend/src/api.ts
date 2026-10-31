@@ -61,6 +61,7 @@ export interface AssistantInfo {
   provider: string;
   model: string;
   demo_mode: boolean;
+  budget_exhausted?: boolean;
   embedding_model: string;
   user_groups: string[];
 }
@@ -91,19 +92,79 @@ async function parseError(resp: Response): Promise<ApiError> {
   return new ApiError(resp.status, message);
 }
 
+const ACCESS_KEY = "eaa.access";
+
+export function getAccessCode(): string | null {
+  try {
+    return localStorage.getItem(ACCESS_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setAccessCode(code: string | null): void {
+  try {
+    if (code) localStorage.setItem(ACCESS_KEY, code);
+    else localStorage.removeItem(ACCESS_KEY);
+  } catch {
+    // Storage unavailable: the code lasts for this page only.
+  }
+  sessionCode = code;
+}
+
+let sessionCode: string | null = getAccessCode();
+
+/** fetch with the deployment's access code. A 401 means the code is missing or was
+ * changed, so the app shows the code screen again. */
+async function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers);
+  if (sessionCode) headers.set("X-Access-Code", sessionCode);
+  const resp = await fetch(input, { ...init, headers });
+  if (resp.status === 401 && input.startsWith("/api/")) {
+    window.dispatchEvent(new Event("eaa:access-required"));
+  }
+  return resp;
+}
+
+export interface AccessStatus {
+  required: boolean;
+  granted: boolean;
+}
+
+export async function getAccess(): Promise<AccessStatus> {
+  const resp = await apiFetch("/api/v1/access");
+  if (!resp.ok) throw await parseError(resp);
+  return resp.json();
+}
+
+/** Returns null when the code is accepted, otherwise a message for the user. */
+export async function submitAccessCode(code: string): Promise<string | null> {
+  const resp = await fetch("/api/v1/access", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ code }),
+  });
+  if (resp.status === 204) {
+    setAccessCode(code);
+    return null;
+  }
+  if (resp.status === 429) return "Too many attempts. Wait a few minutes and try again.";
+  return "That code isn't right.";
+}
+
 export async function getInfo(): Promise<AssistantInfo> {
-  const resp = await fetch("/api/v1/info");
+  const resp = await apiFetch("/api/v1/info");
   if (!resp.ok) throw await parseError(resp);
   return resp.json();
 }
 
 export async function checkReady(): Promise<ReadyResponse> {
-  const resp = await fetch("/health/ready");
+  const resp = await apiFetch("/health/ready");
   return resp.json();
 }
 
 export async function listDocuments(): Promise<DocumentSummary[]> {
-  const resp = await fetch("/api/v1/documents");
+  const resp = await apiFetch("/api/v1/documents");
   if (!resp.ok) throw await parseError(resp);
   return (await resp.json()).documents;
 }
@@ -113,13 +174,13 @@ export async function uploadDocument(
 ): Promise<{ status: "created" | "updated" | "unchanged"; document: DocumentSummary }> {
   const form = new FormData();
   form.append("file", file);
-  const resp = await fetch("/api/v1/documents", { method: "POST", body: form });
+  const resp = await apiFetch("/api/v1/documents", { method: "POST", body: form });
   if (!resp.ok) throw await parseError(resp);
   return resp.json();
 }
 
 export async function getChunk(chunkId: string): Promise<ChunkDetail> {
-  const resp = await fetch(`/api/v1/chunks/${encodeURIComponent(chunkId)}`);
+  const resp = await apiFetch(`/api/v1/chunks/${encodeURIComponent(chunkId)}`);
   if (!resp.ok) throw await parseError(resp);
   return resp.json();
 }
@@ -170,7 +231,7 @@ export async function streamChat(
   handlers: StreamHandlers,
   signal?: AbortSignal,
 ): Promise<ChatResponse> {
-  const resp = await fetch("/api/v1/chat/stream", {
+  const resp = await apiFetch("/api/v1/chat/stream", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt, history, use_knowledge_base: useKnowledgeBase }),
@@ -399,7 +460,7 @@ export async function streamAgent(
   handlers: AgentHandlers,
   signal?: AbortSignal,
 ): Promise<AgentRun> {
-  const resp = await fetch("/api/v1/agent/stream", {
+  const resp = await apiFetch("/api/v1/agent/stream", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt, history }),
@@ -414,7 +475,7 @@ export async function resumeAgent(
   handlers: AgentHandlers,
   signal?: AbortSignal,
 ): Promise<AgentRun> {
-  const resp = await fetch(`/api/v1/agent/runs/${encodeURIComponent(runId)}/resume`, {
+  const resp = await apiFetch(`/api/v1/agent/runs/${encodeURIComponent(runId)}/resume`, {
     method: "POST",
     signal,
   });
@@ -422,7 +483,7 @@ export async function resumeAgent(
 }
 
 export async function getAgentRun(runId: string): Promise<AgentRun> {
-  const resp = await fetch(`/api/v1/agent/runs/${encodeURIComponent(runId)}`);
+  const resp = await apiFetch(`/api/v1/agent/runs/${encodeURIComponent(runId)}`);
   if (!resp.ok) throw await parseError(resp);
   return resp.json();
 }
@@ -434,7 +495,7 @@ export async function decideAction(
   body: { decision: "approve" | "reject"; arguments?: Record<string, unknown>; comment?: string },
   handlers: AgentHandlers,
 ): Promise<AgentRun> {
-  const resp = await fetch(
+  const resp = await apiFetch(
     `/api/v1/agent/runs/${encodeURIComponent(runId)}/actions/${encodeURIComponent(actionId)}/decision`,
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
   );
@@ -442,13 +503,13 @@ export async function decideAction(
 }
 
 export async function listActions(): Promise<AgentAction[]> {
-  const resp = await fetch("/api/v1/actions?limit=100");
+  const resp = await apiFetch("/api/v1/actions?limit=100");
   if (!resp.ok) throw await parseError(resp);
   return resp.json();
 }
 
 export async function listTools(): Promise<ToolInfo[]> {
-  const resp = await fetch("/api/v1/tools");
+  const resp = await apiFetch("/api/v1/tools");
   if (!resp.ok) throw await parseError(resp);
   return resp.json();
 }

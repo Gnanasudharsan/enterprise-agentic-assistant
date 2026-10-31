@@ -207,6 +207,7 @@ def http_error_for(exc: LLMError) -> tuple[int, str]:
 
 @router.get("/info", response_model=AssistantInfo)
 async def info(
+    request: Request,
     llm: Annotated[LLMClient, Depends(get_llm_client)],
     retriever: Annotated[Retriever, Depends(get_retriever)],
     groups: Annotated[list[str], Depends(get_user_groups)],
@@ -218,6 +219,8 @@ async def info(
         provider=llm.provider,
         model=llm.model,
         demo_mode=llm.provider == "fake",
+        budget_exhausted=bool(getattr(request.app.state, "budget", None))
+        and request.app.state.budget.exhausted,
         embedding_model=retriever.embedder.model,
         user_groups=groups,
     )

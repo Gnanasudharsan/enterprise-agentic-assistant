@@ -105,8 +105,24 @@ class Settings(BaseSettings):
     # "otlp" exports OpenTelemetry traces to OTEL_EXPORTER_OTLP_ENDPOINT (e.g. Jaeger);
     # "console" prints them. LangSmith tracing of the graph is separate: set
     # LANGSMITH_TRACING=true and LANGSMITH_API_KEY.
-    tracing: Literal["none", "otlp", "console"] = "none"
+    tracing: Literal["none", "otlp", "console", "gcp"] = "none"
     otel_service_name: str = "enterprise-assistant-api"
+
+    # --- Deployment ---
+    # Serve the built frontend from this directory (the production image sets it).
+    static_dir: str | None = None
+    log_format: Literal["text", "json"] = "text"  # json: one object per line (Cloud Logging)
+    # Visitors must send this code (the UI asks for it). Unset: no code required.
+    access_code: SecretStr | None = None
+    # Model-calling requests per client per window; 0 disables the limit.
+    rate_limit_requests: int = Field(default=0, ge=0)
+    rate_limit_window_seconds: int = Field(default=600, ge=1)
+    # Tokens per UTC day across all requests before answers switch to the offline model;
+    # 0 disables the budget.
+    daily_token_budget: int = Field(default=0, ge=0)
+    # Proxies in front of the app that append to X-Forwarded-For (Cloud Run: 1).
+    forwarded_hops: int = Field(default=0, ge=0, le=5)
+    db_pool_size: int = Field(default=5, ge=1, le=50)
 
     # --- Database ---
     database_url: str | None = None

@@ -70,7 +70,7 @@ async def open_checkpointer(settings: Settings) -> AsyncIterator[BaseCheckpointS
 
     pool = AsyncConnectionPool(
         conninfo=settings.psycopg_url,
-        max_size=10,
+        max_size=settings.db_pool_size,
         open=False,
         kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row},
     )
