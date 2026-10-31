@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ## [Unreleased]
 
+### Changed
+- UI redesign in the spirit of Apple's and Google's product UIs:
+  - **Type:** system typography (SF Pro on Apple devices, Inter elsewhere) with tight display headlines.
+  - **Color:** neutral grays with one interactive blue; the orange sun is now the brand mark only.
+  - **Chrome:** a translucent sidebar that follows the theme, and a frosted top bar, composer button, tooltips, and palette.
+  - **Shapes:** pill buttons, segmented controls, and composer; borderless tiles for suggestions, sources, and passages.
+  - **Motion and depth:** softer shadows and spring motion.
+- The hero headline uses an AI gradient and balanced line breaks; mobile shows a shorter greeting.
+- README screenshots regenerated.
+
 ## [0.6.0] - 2026-10-31 (Phase 6: Deployment & presentation)
 
 ### Added

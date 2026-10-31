@@ -1,6 +1,7 @@
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 
 import { getAccess, setAccessCode, submitAccessCode } from "../api";
+import { LogoMark } from "./Icons";
 
 type State = "checking" | "open" | "locked";
 
@@ -41,7 +42,9 @@ export function AccessGate({ children }: { children: ReactNode }) {
   return (
     <div className="gate">
       <form className="gate-card" onSubmit={submit}>
-        <div className="gate-mark" aria-hidden="true" />
+        <div className="gate-mark" aria-hidden="true">
+          <LogoMark width={30} height={30} />
+        </div>
         <h1>Helio Assistant</h1>
         <p>
           A research and workflow assistant over a fictional company's documents and data. This
