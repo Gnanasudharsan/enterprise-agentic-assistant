@@ -10,6 +10,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from typing import Literal
 
+from opentelemetry import trace
 from sqlalchemy import String, cast, func, select
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +20,8 @@ from app.rag.embeddings import Embedder
 from app.rag.reranking import Reranker
 
 SearchMode = Literal["hybrid", "vector", "keyword"]
+
+tracer = trace.get_tracer("app.rag")
 
 _QUERY_TERM = re.compile(r"[\w][\w-]*")
 
@@ -35,6 +38,11 @@ class RetrievedChunk:
     score: float
     vector_rank: int | None = None
     keyword_rank: int | None = None
+
+
+def rerank_text(chunk: RetrievedChunk) -> str:
+    """The section is the heading path, starting with the document title."""
+    return f"{chunk.section}\n\n{chunk.content}" if chunk.section else chunk.content
 
 
 def keyword_query(text: str) -> str:
@@ -66,12 +74,15 @@ class Retriever:
         top_k: int = 6,
         rrf_k: int = 60,
         reranker: Reranker | None = None,
+        rerank_by_default: bool = True,
     ) -> None:
         self.embedder = embedder
         self.candidates = candidates
         self.top_k = top_k
         self.rrf_k = rrf_k
         self.reranker = reranker
+        # Rerank when a caller does not say; callers can opt in or out per search.
+        self.rerank_by_default = rerank_by_default
 
     def _visible(self, groups: Sequence[str]):
         return (
@@ -116,9 +127,27 @@ class Retriever:
         *,
         mode: SearchMode = "hybrid",
         top_k: int | None = None,
-        rerank: bool = True,
+        rerank: bool | None = None,
+    ) -> list[RetrievedChunk]:
+        with tracer.start_as_current_span(
+            "retrieval.search", attributes={"retrieval.mode": mode}
+        ) as span:
+            results = await self._search(session, query, groups, mode, top_k, rerank)
+            span.set_attribute("retrieval.results", len(results))
+            return results
+
+    async def _search(
+        self,
+        session: AsyncSession,
+        query: str,
+        groups: Sequence[str],
+        mode: SearchMode,
+        top_k: int | None,
+        rerank: bool | None,
     ) -> list[RetrievedChunk]:
         top_k = top_k or self.top_k
+        if rerank is None:
+            rerank = self.rerank_by_default
         vector = await self._vector_ranking(session, query, groups) if mode != "keyword" else []
         keyword = await self._keyword_ranking(session, query, groups) if mode != "vector" else []
 
@@ -155,7 +184,9 @@ class Retriever:
         ]
         if use_reranker:
             assert self.reranker is not None
-            scores = await self.reranker.score(query, [r.content for r in results])
+            # Rerankers see what the embedder saw: the heading path (document title first) carries
+            # identifiers ("INC-198") and topics that the passage body often omits.
+            scores = await self.reranker.score(query, [rerank_text(r) for r in results])
             if scores is not None:
                 results = [
                     replace(r, score=s)

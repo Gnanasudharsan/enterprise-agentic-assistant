@@ -15,7 +15,7 @@ def test_chat_returns_answer_and_persists_run(client, llm, chat_runs):
     assert body["answer"] == "stub answer"
     assert body["provider"] == "stub"
     assert body["model"] == "stub-model"
-    assert body["usage"] == {"prompt_tokens": 10, "completion_tokens": 2}
+    assert body["usage"] == {"prompt_tokens": 10, "completion_tokens": 2, "llm_calls": 1}
     assert isinstance(body["latency_ms"], int)
 
     [messages] = llm.calls

@@ -19,11 +19,13 @@ def build_embedder(settings: Settings) -> Embedder:
 
 
 def build_retriever(settings: Settings, embedder: Embedder, llm: LLMClient) -> Retriever:
-    reranker = LLMReranker(llm) if settings.reranker == "llm" else None
+    # The reranker is always available so a request can opt in (`rerank: true`); the
+    # setting decides whether searches rerank when they don't say.
     return Retriever(
         embedder,
         candidates=settings.retrieval_candidates,
         top_k=settings.retrieval_top_k,
         rrf_k=settings.rrf_k,
-        reranker=reranker,
+        reranker=LLMReranker(llm),
+        rerank_by_default=settings.reranker == "llm",
     )

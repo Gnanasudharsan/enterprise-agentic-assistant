@@ -14,6 +14,7 @@ from app.agents.action_nodes import ActionAgents
 from app.agents.nodes import AgentDeps, Agents
 from app.agents.state import AgentState
 from app.core.config import Settings
+from app.core.telemetry import traced_node
 from app.llm.base import LLMError
 
 # Transient infrastructure failures are retried with backoff. Logical failures (bad
@@ -26,14 +27,18 @@ def build_graph(deps: AgentDeps, checkpointer: BaseCheckpointSaver) -> CompiledS
     agents = Agents(deps)
     actions = ActionAgents(deps)
     graph = StateGraph(AgentState)
-    graph.add_node("supervisor", agents.supervisor)
-    graph.add_node("research", agents.research, retry_policy=DB_RETRY)
-    graph.add_node("data", agents.data, retry_policy=DB_RETRY)
-    graph.add_node("coordinator", agents.coordinator)
-    graph.add_node("analyst", agents.analyst, retry_policy=LLM_RETRY)
-    graph.add_node("propose_action", actions.propose_action, retry_policy=DB_RETRY)
-    graph.add_node("approval", actions.approval)
-    graph.add_node("execute_action", actions.execute_action)
+    graph.add_node("supervisor", traced_node("supervisor", agents.supervisor))
+    graph.add_node("research", traced_node("research", agents.research), retry_policy=DB_RETRY)
+    graph.add_node("data", traced_node("data", agents.data), retry_policy=DB_RETRY)
+    graph.add_node("coordinator", traced_node("coordinator", agents.coordinator))
+    graph.add_node("analyst", traced_node("analyst", agents.analyst), retry_policy=LLM_RETRY)
+    graph.add_node(
+        "propose_action",
+        traced_node("propose_action", actions.propose_action),
+        retry_policy=DB_RETRY,
+    )
+    graph.add_node("approval", traced_node("approval", actions.approval))
+    graph.add_node("execute_action", traced_node("execute_action", actions.execute_action))
 
     graph.add_edge(START, "supervisor")
     graph.add_conditional_edges("supervisor", agents.route, ["research", "data", "analyst"])

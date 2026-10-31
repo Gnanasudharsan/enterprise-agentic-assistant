@@ -147,6 +147,11 @@ class AgentRun(Base):
     citations: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     error_type: Mapped[str | None] = mapped_column(String(64))
     latency_ms: Mapped[int | None] = mapped_column(Integer)
+    # Every model call the run made (planner, repairs, analyst, drafts), summed over
+    # resumptions.
+    llm_calls: Mapped[int | None] = mapped_column(Integer)
+    prompt_tokens: Mapped[int | None] = mapped_column(Integer)
+    completion_tokens: Mapped[int | None] = mapped_column(Integer)
 
 
 class AgentAction(Base):

@@ -24,8 +24,9 @@ from app.agents.action_nodes import validate_arguments
 from app.agents.nodes import gather_evidence
 from app.db.models import AgentAction, AgentRun
 from app.llm.base import LLMClient, LLMError, LLMTimeoutError
+from app.llm.metering import UsageMeter, start_meter
 from app.schemas.agent import AgentRunResponse, AgentRunSummary
-from app.schemas.chat import MAX_HISTORY_MESSAGES, HistoryMessage
+from app.schemas.chat import MAX_HISTORY_MESSAGES, HistoryMessage, Usage
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +92,11 @@ def to_response(run: AgentRun, actions: list[dict] | None = None) -> AgentRunRes
         provider=run.provider,
         model=run.model,
         latency_ms=run.latency_ms,
+        usage=Usage(
+            prompt_tokens=run.prompt_tokens,
+            completion_tokens=run.completion_tokens,
+            llm_calls=run.llm_calls,
+        ),  # fmt: skip
         plan=run.plan,
         sources=run.sources or [],
         tables=run.tables or [],
@@ -175,6 +181,7 @@ class AgentService:
         self, run_id: uuid.UUID, inputs: dict | Command | None
     ) -> AsyncIterator[Event]:
         started = time.perf_counter()
+        meter = start_meter()
         config = self._config(run_id)
         try:
             async for chunk in self.graph.astream(inputs, config, stream_mode="custom"):
@@ -183,14 +190,14 @@ class AgentService:
         except Exception as exc:  # noqa: BLE001 - recorded on the run, then reported
             logger.exception("Agent run %s failed", run_id)
             values = (await self.graph.aget_state(config)).values
-            await self._finish(run_id, values, started, error=exc)
+            await self._finish(run_id, values, started, meter, error=exc)
             code, detail = error_detail(exc)
             yield "error", {"status": code, "detail": detail, "run_id": str(run_id),
                             "resumable": True}  # fmt: skip
             return
         snapshot = await self.graph.aget_state(config)
         paused = "approval" in snapshot.next  # stopped at the interrupt, waiting for a human
-        response = await self._finish(run_id, snapshot.values, started, paused=paused)
+        response = await self._finish(run_id, snapshot.values, started, meter, paused=paused)
         if paused:
             pending = [a for a in response.actions if a.status == "proposed"]
             yield "approval_required", {"run_id": str(run_id),
@@ -202,6 +209,7 @@ class AgentService:
         run_id: uuid.UUID,
         values: dict[str, Any],
         started: float,
+        meter: UsageMeter,
         error: Exception | None = None,
         paused: bool = False,
     ) -> AgentRunResponse:
@@ -221,6 +229,9 @@ class AgentService:
             run.citations = {**citations, "invalid": values.get("invalid_citations", 0)}
             # Resumed runs accumulate the time of every attempt.
             run.latency_ms = (run.latency_ms or 0) + round((time.perf_counter() - started) * 1000)
+            run.llm_calls = (run.llm_calls or 0) + meter.calls
+            run.prompt_tokens = (run.prompt_tokens or 0) + meter.prompt_tokens
+            run.completion_tokens = (run.completion_tokens or 0) + meter.completion_tokens
             await db.commit()
             await db.refresh(run)
             return to_response(run, await actions_for(db, [run_id]))

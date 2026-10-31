@@ -91,7 +91,10 @@ change usually need both: data to quantify it and research to explain it.
 - When a question measures something against a company target, policy, or plan (e.g. \
 "did we meet the onboarding target?"), add research too, so the target is cited from the \
 document that defines it.
-- Purely conversational or general-knowledge questions need no steps (empty list).
+- Questions about what a policy, procedure, or playbook says (limits, targets, response \
+times, how long a process step takes, who approves) are research questions, even when a \
+related column exists in the data. Use data for what was actually measured.
+- Purely conversational messages (greetings, thanks) need no steps (empty list).
 - Each data step asks one focused analytical question (one result table).
 - If a data step needs facts that only the documents contain (incident dates, a target, a \
 definition), set its "depends_on" to that research step's id: it then runs after the \
@@ -120,6 +123,14 @@ _REFERENCES_STANDARD = re.compile(
     re.I,
 )
 _CHAT_ONLY = re.compile(r"^\s*(hi|hello|hey|thanks|thank you|ok|okay|cool)\b[\s!.?]*$", re.I)
+_SMALL_TALK = re.compile(
+    r"^\s*(hi|hello|hey|thanks|thank you|thx|ok|okay|cool|great|perfect|awesome|nice)\b", re.I
+)
+
+
+def is_small_talk(message: str) -> bool:
+    """Greetings and thanks, not questions: the only messages answered without a lookup."""
+    return bool(_CHAT_ONLY.match(message) or (_SMALL_TALK.match(message) and "?" not in message))
 
 
 ACTION_AGENT = """\
@@ -180,32 +191,46 @@ def parse_plan(raw: str, max_steps: int, actions: bool = False) -> Plan:
     return plan
 
 
-def apply_plan_rules(plan: Plan, question: str) -> tuple[Plan, list[str]]:
+def apply_plan_rules(plan: Plan, question: str, max_steps: int = 6) -> tuple[Plan, list[str]]:
     """Deterministic rules on top of the model's plan. Returns the plan and what changed.
 
-    A measured answer to "did we meet the target?" is only trustworthy if the target is
-    cited from the document that defines it, so such questions always get a research step.
+    Every question that is not small talk also searches the documents. A research step is
+    one retrieval (no model call) and runs in parallel with the other steps, so it costs
+    little; skipping it is how a planner answers "what is the P1 response time?" from
+    ticket data instead of the playbook, or "the hotel limit in San Francisco?" from
+    general knowledge. A measured answer to "did we meet the target?" likewise needs the
+    target cited from the document that defines it.
     """
-    notes: list[str] = []
-    has_data = any(s.agent == "data" for s in plan.steps)
-    has_research = any(s.agent == "research" for s in plan.steps)
-    if has_data and not has_research and _REFERENCES_STANDARD.search(question):
-        used = {s.id for s in plan.steps}
-        new_id = next(f"s{i}" for i in range(1, 10) if f"s{i}" not in used)
-        step = PlanStep(
-            id=new_id,
-            agent="research",
-            goal="Find where the target or policy is defined",
-            query=question[:500],
-        )
-        plan = plan.model_copy(update={"steps": [*plan.steps, step]})
-        notes.append("added a research step: the question refers to a target or policy")
-    return plan, notes
+    if (
+        any(s.agent == "research" for s in plan.steps)
+        or is_small_talk(question)
+        or len(plan.steps) >= max_steps
+    ):
+        return plan, []
+    steps = [s for s in plan.steps if s.agent != "action"]
+    action = [s for s in plan.steps if s.agent == "action"]
+    target = bool(steps) and bool(_REFERENCES_STANDARD.search(question))
+    step = PlanStep(
+        id=next(f"s{i}" for i in range(1, 10) if f"s{i}" not in {s.id for s in plan.steps}),
+        agent="research",
+        goal="Find where the target or policy is defined"
+        if target
+        else "Check the company documents",
+        query=question[:500],
+    )
+    # The action step stays last.
+    plan = plan.model_copy(update={"steps": [*steps, step, *action]})
+    reason = (
+        "the question refers to a target or policy"
+        if target
+        else "every question checks the documents"
+    )
+    return plan, [f"added a research step: {reason}"]
 
 
 def fallback_plan(question: str, actions: bool = False) -> Plan:
     """A deterministic plan when the model cannot plan (offline mode, provider errors)."""
-    if _CHAT_ONLY.match(question):
+    if is_small_talk(question):
         return Plan(reasoning="Conversational message; no lookup needed.", steps=[])
     steps = [
         PlanStep(id="s1", agent="research", goal="Find relevant company documents",

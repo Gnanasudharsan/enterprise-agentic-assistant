@@ -15,10 +15,12 @@ from typing import Any, Protocol
 
 from mcp import Client
 from mcp.client.stdio import StdioServerParameters
+from opentelemetry import trace
 
 from app.core.config import Settings
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer("app.actions")
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 CALL_TIMEOUT_SECONDS = 20
@@ -53,6 +55,16 @@ class MCPGateway:
         self.tools = tools
 
     async def call(self, name: str, arguments: dict[str, Any]) -> ToolResult:
+        with tracer.start_as_current_span(
+            f"mcp.call_tool {name}",
+            kind=trace.SpanKind.CLIENT,
+            attributes={"mcp.server": self.server, "mcp.tool": name},
+        ) as span:
+            result = await self._call(name, arguments)
+            span.set_attribute("mcp.ok", result.ok)
+            return result
+
+    async def _call(self, name: str, arguments: dict[str, Any]) -> ToolResult:
         try:
             result = await self._client.call_tool(
                 name, arguments, read_timeout_seconds=CALL_TIMEOUT_SECONDS

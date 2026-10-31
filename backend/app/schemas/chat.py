@@ -19,6 +19,10 @@ class ChatRequest(BaseModel):
     history: list[HistoryMessage] = Field(default_factory=list, max_length=200)
     # Search the company knowledge base and ground the answer in what is found.
     use_knowledge_base: bool = True
+    # Retrieval options, mainly for evaluation: which channels to search and whether to
+    # rerank (None = the server's RERANKER setting).
+    retrieval_mode: Literal["hybrid", "vector", "keyword"] = "hybrid"
+    rerank: bool | None = None
 
     @field_validator("prompt")
     @classmethod
@@ -30,8 +34,11 @@ class ChatRequest(BaseModel):
 
 
 class Usage(BaseModel):
+    """Tokens across every model call made for the request (reranking included)."""
+
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
+    llm_calls: int | None = None
 
 
 class Source(BaseModel):

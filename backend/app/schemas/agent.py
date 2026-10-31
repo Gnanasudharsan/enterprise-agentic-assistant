@@ -5,7 +5,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator
 
 from app.agents.plan import Plan
-from app.schemas.chat import MAX_PROMPT_CHARS, HistoryMessage, Source
+from app.schemas.chat import MAX_PROMPT_CHARS, HistoryMessage, Source, Usage
 
 
 class AgentRequest(BaseModel):
@@ -44,6 +44,8 @@ class TableResult(BaseModel):
     elapsed_ms: int | None = None
     chart: Chart | None = None
     error: str | None = None
+    # The data has nothing that measures the question (no query was run, by design).
+    unanswerable: bool = False
     # Failed attempts before the final query (each with the SQL and the error).
     attempts: list[dict[str, Any]] = []
 
@@ -119,6 +121,7 @@ class AgentRunResponse(BaseModel):
     provider: str
     model: str | None
     latency_ms: int | None
+    usage: Usage = Usage()
     plan: Plan | None
     sources: list[Source] = []
     tables: list[TableResult] = []

@@ -28,8 +28,15 @@ from app.api.deps import (
 from app.core.config import Settings
 from app.db.models import ChatRun
 from app.llm.base import ChatMessage, LLMClient, LLMError, LLMResult, LLMTimeoutError
+from app.llm.metering import UsageMeter, start_meter
 from app.rag.embeddings import EmbeddingError
-from app.rag.grounding import build_grounded_messages, check_citations, retrieval_query
+from app.rag.grounding import (
+    build_grounded_messages,
+    check_citations,
+    flag_unverified,
+    retrieval_query,
+    sanitize_links,
+)
 from app.rag.retrieval import RetrievedChunk, Retriever
 from app.schemas.chat import (
     MAX_HISTORY_MESSAGES,
@@ -74,7 +81,13 @@ async def prepare(
 
     previous = next((m.content for m in reversed(history) if m.role == "user"), None)
     try:
-        sources = await retriever.search(db, retrieval_query(body.prompt, previous), groups)
+        sources = await retriever.search(
+            db,
+            retrieval_query(body.prompt, previous),
+            groups,
+            mode=body.retrieval_mode,
+            rerank=body.rerank,
+        )
     except EmbeddingError as exc:
         # Degrade to an ungrounded answer rather than failing the whole request.
         logger.warning("Retrieval failed, answering without the knowledge base: %s", exc)
@@ -126,22 +139,46 @@ def retrieved_audit(prepared: PreparedRequest) -> list[dict]:
     ]
 
 
+def request_usage(result: LLMResult, meter: UsageMeter) -> Usage:
+    # The meter also counts the reranker; without one (a bare client), use the answer's.
+    if meter.calls:
+        return Usage(prompt_tokens=meter.prompt_tokens, completion_tokens=meter.completion_tokens,
+                     llm_calls=meter.calls)  # fmt: skip
+    return Usage(prompt_tokens=result.prompt_tokens, completion_tokens=result.completion_tokens)
+
+
 def finalize(
-    llm: LLMClient, prompt: str, prepared: PreparedRequest, result: LLMResult, latency_ms: int
+    settings: Settings,
+    llm: LLMClient,
+    prompt: str,
+    prepared: PreparedRequest,
+    result: LLMResult,
+    latency_ms: int,
+    meter: UsageMeter,
 ) -> tuple[ChatRun, ChatResponse]:
+    usage = request_usage(result, meter)
     check = check_citations(result.content, len(prepared.sources))
     if check.invalid:
         logger.warning("Removed %d invalid citation(s) from answer", check.invalid)
+    safe = sanitize_links(check.answer, settings.answer_link_hosts)
+    if safe.removed:
+        logger.warning("Neutralized %d image(s)/link(s) in answer", safe.removed)
+    # Only grounded answers are checked: without sources the prompt already says so.
+    answer, _ = (
+        flag_unverified(safe.text, prompt, len(check.cited))
+        if prepared.sources
+        else (safe.text, False)
+    )
     run = ChatRun(
         id=uuid.uuid4(),  # assigned now: the response is built before the row is flushed
         status="succeeded",
         provider=llm.provider,
         model=result.model,
         prompt=prompt,
-        answer=check.answer,
+        answer=answer,
         latency_ms=latency_ms,
-        prompt_tokens=result.prompt_tokens,
-        completion_tokens=result.completion_tokens,
+        prompt_tokens=usage.prompt_tokens,
+        completion_tokens=usage.completion_tokens,
         retrieved=retrieved_audit(prepared),
         citations=[
             {"index": n, "chunk_id": str(prepared.sources[n - 1].chunk_id)} for n in check.cited
@@ -149,11 +186,11 @@ def finalize(
     )
     response = ChatResponse(
         run_id=run.id,
-        answer=check.answer,
+        answer=answer,
         provider=llm.provider,
         model=result.model,
         latency_ms=latency_ms,
-        usage=Usage(prompt_tokens=result.prompt_tokens, completion_tokens=result.completion_tokens),
+        usage=usage,
         retrieval=prepared.retrieval,
         sources=to_sources(prepared.sources),
         citations=check.cited,
@@ -196,6 +233,7 @@ async def chat(
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> ChatResponse:
     started = time.perf_counter()
+    meter = start_meter()
     prepared = await prepare(body, settings, retriever, groups, db)
     try:
         result = await llm.complete(prepared.messages)
@@ -207,7 +245,9 @@ async def chat(
         code, detail = http_error_for(exc)
         raise HTTPException(code, detail) from exc
 
-    run, response = finalize(llm, body.prompt, prepared, result, elapsed_ms(started))
+    run, response = finalize(
+        settings, llm, body.prompt, prepared, result, elapsed_ms(started), meter
+    )
     db.add(run)
     await db.commit()
     return response
@@ -232,6 +272,7 @@ async def chat_stream(
 
     async def events() -> AsyncIterator[str]:
         started = time.perf_counter()
+        meter = start_meter()
         async with sessionmaker() as db:
             prepared = await prepare(body, settings, retriever, groups, db)
         yield sse(
@@ -262,7 +303,9 @@ async def chat_stream(
             yield sse("error", {"status": 502, "detail": "The language model request failed."})
             return
 
-        run, response = finalize(llm, body.prompt, prepared, result, elapsed_ms(started))
+        run, response = finalize(
+            settings, llm, body.prompt, prepared, result, elapsed_ms(started), meter
+        )
         async with sessionmaker() as db:
             db.add(run)
             await db.commit()

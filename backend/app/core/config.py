@@ -69,6 +69,10 @@ class Settings(BaseSettings):
     # returns chunks from documents whose ACL overlaps these groups.
     user_groups: list[str] = ["all-employees"]
     documents_dir: str = "../datasets/documents"
+    # Hosts that answers and drafted issues may link to. Images are always removed and
+    # other links are reduced to their text, so injected content cannot exfiltrate data
+    # through a URL (see app.rag.grounding.sanitize_links).
+    answer_link_hosts: list[str] = []
 
     # --- Agents (multi-agent orchestration) ---
     agent_max_plan_steps: int = Field(default=4, ge=1, le=6)
@@ -96,6 +100,13 @@ class Settings(BaseSettings):
     }
     # The demo caller's identity, recorded on approvals, until authentication lands.
     user_id: str = "demo-user"
+
+    # --- Observability ---
+    # "otlp" exports OpenTelemetry traces to OTEL_EXPORTER_OTLP_ENDPOINT (e.g. Jaeger);
+    # "console" prints them. LangSmith tracing of the graph is separate: set
+    # LANGSMITH_TRACING=true and LANGSMITH_API_KEY.
+    tracing: Literal["none", "otlp", "console"] = "none"
+    otel_service_name: str = "enterprise-assistant-api"
 
     # --- Database ---
     database_url: str | None = None

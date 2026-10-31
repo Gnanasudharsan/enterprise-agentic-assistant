@@ -85,7 +85,7 @@ jobs:
           curl -sf -X POST localhost:8000/api/v1/agent/run \
             -H 'content-type: application/json' \
             -d '{"prompt":"How many kyb verification tickets did we get per month?"}' > run.json
-          python3 -c "import json; d=json.load(open('run.json')); t=d['tables'][0]; print(d['status'], t['title'], t['rows']); assert d['status']=='succeeded', d; assert [r[1] for r in t['rows'] if r[0]=='2026-09']==[118], t; assert d['citations']['tables']==[1], d['citations']"
+          python3 -c "import json; d=json.load(open('run.json')); t=d['tables'][0]; print(d['status'], t['title'], t['rows']); assert d['status']=='succeeded', d; assert [r[1] for r in t['rows'] if r[0]=='2026-09']==[118], t; assert d['citations']['tables']==[1], d['citations']; assert d['usage']['llm_calls']>=2, d['usage']"
           curl -sf localhost:8000/api/v1/agent/runs/$(python3 -c "import json; print(json.load(open('run.json'))['run_id'])") > /dev/null
       - name: Approved action (proposal pauses the run; MCP tracker creates the issue on approval)
         run: |

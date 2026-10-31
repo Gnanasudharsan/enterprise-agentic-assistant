@@ -16,8 +16,10 @@ from app.agents.service import AgentService
 from app.analytics.sql import SQLExecutor
 from app.api.routes import agent, chat, documents, health, search
 from app.core.config import Settings, get_settings
+from app.core.telemetry import setup_tracing
 from app.db.session import build_engine, build_sessionmaker
 from app.llm.factory import build_llm_client
+from app.llm.metering import MeteredLLM
 from app.rag.factory import build_embedder, build_retriever
 
 
@@ -30,6 +32,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # Tests may pre-populate app.state.llm_client / retriever with stubs.
         if getattr(app.state, "llm_client", None) is None:
             app.state.llm_client = build_llm_client(settings)
+        # Count tokens per request (cost) and trace every model call, stubs included.
+        if not isinstance(app.state.llm_client, MeteredLLM):
+            app.state.llm_client = MeteredLLM(app.state.llm_client)
         if getattr(app.state, "retriever", None) is None:
             embedder = build_embedder(settings)
             app.state.retriever = build_retriever(settings, embedder, app.state.llm_client)
@@ -71,6 +76,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title=settings.app_name, version=__version__, lifespan=lifespan)
     app.state.settings = settings
+    setup_tracing(app, settings)
 
     app.add_middleware(
         CORSMiddleware,

@@ -27,6 +27,7 @@ from app.agents.nodes import AgentDeps, Timer, gather_evidence, trace_event
 from app.agents.state import AgentState
 from app.db.models import AgentAction
 from app.llm.base import ChatMessage, LLMError
+from app.rag.grounding import sanitize_links
 
 logger = logging.getLogger(__name__)
 
@@ -236,8 +237,11 @@ class ActionAgents:
                 if tool is None:
                     raise ValueError(f"tool must be one of {sorted(by_name)}")
                 arguments = validate_arguments(tool, data.get("arguments"))
-                if isinstance(arguments.get("body"), str):  # chat citation markers
-                    arguments["body"] = _CHAT_MARKER.sub("", arguments["body"])
+                hosts = self.deps.settings.answer_link_hosts
+                for key in ("title", "body"):  # no exfiltration links, no chat markers
+                    if isinstance(arguments.get(key), str):
+                        text = sanitize_links(arguments[key], hosts).text
+                        arguments[key] = _CHAT_MARKER.sub("", text)
                 return {"tool": tool.name, "arguments": arguments,
                         "rationale": str(data.get("rationale") or "")[:500]}, problems  # fmt: skip
             except (ValueError, json.JSONDecodeError) as exc:
