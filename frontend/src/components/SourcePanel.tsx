@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { untrustedComponents } from "./markdown";
 
 import { ApiError, type ChunkDetail, getChunk, type Source } from "../api";
 import { docType } from "../docTypes";
@@ -75,7 +76,7 @@ export function SourcePanel({ source, total, onClose }: Props) {
             ))}
           </div>
           <div className="passage markdown">
-            <Markdown remarkPlugins={[remarkGfm]}>{detail?.content ?? source.snippet}</Markdown>
+            <Markdown remarkPlugins={[remarkGfm]} components={untrustedComponents}>{detail?.content ?? source.snippet}</Markdown>
           </div>
           {error && <p className="panel-error">{error}</p>}
 

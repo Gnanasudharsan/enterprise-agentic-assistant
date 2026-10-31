@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { untrustedComponents } from "./markdown";
 
 import type { IssueArguments, Source, TableResult, ToolInfo } from "../api";
 import type { Message } from "../storage";
@@ -119,6 +120,7 @@ export function MessageView({
             <Markdown
               remarkPlugins={[remarkGfm]}
               components={{
+                ...untrustedComponents,
                 a: ({ href, children, ...props }) => {
                   if (href?.startsWith("#table-")) {
                     const n = Number(href.slice(7));

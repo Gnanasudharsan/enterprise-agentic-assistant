@@ -261,9 +261,9 @@ export function DataCard({ table, id, cited }: { table: TableResult; id: string;
 
   if (table.error) {
     return (
-      <div className="data-card data-card-failed" id={id}>
+      <div className={`data-card ${table.unanswerable ? "data-card-missing" : "data-card-failed"}`} id={id}>
         <div className="data-head">
-          <span className="data-index warn">!</span>
+          <span className={`data-index ${table.unanswerable ? "" : "warn"}`}>{table.unanswerable ? "–" : "!"}</span>
           <div className="data-head-text">
             <div className="data-title">{table.title}</div>
             <div className="data-sub">{table.error}</div>

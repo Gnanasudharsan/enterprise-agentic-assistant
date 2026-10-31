@@ -33,9 +33,9 @@ interface Props {
 }
 
 const ROADMAP = [
-  { icon: ShieldIcon, label: "Safety evals", phase: "P5" },
-  { icon: SparkIcon, label: "Baseline vs. agents", phase: "P5" },
-  { icon: ChartIcon, label: "Cloud deployment", phase: "P6" },
+  { icon: ChartIcon, label: "Cloud Run deployment", phase: "P6" },
+  { icon: ShieldIcon, label: "Health checks & monitoring", phase: "P6" },
+  { icon: SparkIcon, label: "Demo & walkthrough", phase: "P6" },
 ];
 
 const THEMES: { value: ThemePreference; icon: typeof SunIcon; label: string }[] = [

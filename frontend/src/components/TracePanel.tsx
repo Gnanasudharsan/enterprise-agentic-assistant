@@ -95,6 +95,12 @@ export function TracePanel({ runId, onClose }: { runId: string | null; onClose: 
             {run && (
               <p className="panel-sub mono">
                 {run.run_id.slice(0, 8)} · {run.model} · {((run.latency_ms ?? 0) / 1000).toFixed(1)}s
+                {run.usage?.llm_calls ? (
+                  <>
+                    {" "}· {run.usage.llm_calls} model call{run.usage.llm_calls === 1 ? "" : "s"} ·{" "}
+                    {((run.usage.prompt_tokens ?? 0) + (run.usage.completion_tokens ?? 0)).toLocaleString()} tokens
+                  </>
+                ) : null}
               </p>
             )}
           </div>

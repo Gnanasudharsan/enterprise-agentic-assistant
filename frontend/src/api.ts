@@ -20,7 +20,7 @@ export interface ChatResponse {
   provider: string;
   model: string;
   latency_ms: number;
-  usage: { prompt_tokens: number | null; completion_tokens: number | null };
+  usage: Usage;
   retrieval: RetrievalStatus;
   sources: Source[];
   citations: number[];
@@ -229,6 +229,8 @@ export interface TableResult {
   elapsed_ms: number | null;
   chart: Chart | null;
   error: string | null;
+  /** The data has nothing that measures the question; no query was run. */
+  unanswerable?: boolean;
   attempts: { attempt: number; sql?: string | null; error: string }[];
 }
 
@@ -284,6 +286,13 @@ export interface ToolInfo {
   permitted: boolean;
 }
 
+/** Tokens across every model call a request made (planner, SQL, reranker, analyst…). */
+export interface Usage {
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  llm_calls?: number | null;
+}
+
 export interface AgentRun {
   run_id: string;
   status: "running" | "succeeded" | "failed" | "needs_approval";
@@ -293,6 +302,7 @@ export interface AgentRun {
   provider: string;
   model: string | null;
   latency_ms: number | null;
+  usage?: Usage;
   plan: Plan | null;
   sources: Source[];
   tables: TableResult[];
