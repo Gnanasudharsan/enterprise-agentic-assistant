@@ -43,13 +43,12 @@ export function EmptyState({ onPick, composer, stats, embeddingModel }: Props) {
   return (
     <div className="hero">
       <div className="hero-glow" aria-hidden="true" />
-      <div className="hero-grid" aria-hidden="true" />
       <div className="hero-inner">
         <span className="hero-eyebrow">
           <span className="hero-eyebrow-mark">
             <LogoMark width={13} height={13} />
           </span>
-          {greeting}. Every answer cites its documents and data.
+          {greeting}.<span className="hero-eyebrow-more">Every answer cites its documents and data.</span>
         </span>
         <h1 className="hero-title">
           What should we <em>research</em> today?
