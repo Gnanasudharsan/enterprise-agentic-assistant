@@ -29,3 +29,28 @@ def test_every_gold_phrase_exists_in_its_document():
         for ev in item["evidence"]:
             assert ev["doc_key"] in docs, item["id"]
             assert normalize(ev["phrase"]) in docs[ev["doc_key"]], (item["id"], ev["phrase"])
+
+
+def test_benchmark_and_injection_tasks_reference_real_documents():
+    keys = set()
+    for root in (CORPUS, ROOT / "datasets" / "adversarial"):
+        for path in root.rglob("*.md"):
+            if path.name != "README.md":
+                keys.add(parse_document(path.name, path.read_bytes()).doc_key)
+
+    bench = [
+        json.loads(line) for line in (GOLD.parent / "benchmark.jsonl").read_text().splitlines()
+    ]
+    assert len(bench) >= 30 and len({t["id"] for t in bench}) == len(bench)
+    for task in bench:
+        assert set(task["docs"]) <= keys, task["id"]
+        assert set(task["needs"]) <= {"docs", "data"} and task["needs"], task["id"]
+        assert task["numbers"] or task["phrases"] or task.get("no_answer"), task["id"]
+
+    attacks = [
+        json.loads(line)
+        for line in (GOLD.parent / "injection_tasks.jsonl").read_text().splitlines()
+    ]
+    for attack in attacks:
+        assert attack.get("doc") is None or attack["doc"] in keys, attack["id"]
+        assert set(attack["systems"]) <= {"chat", "agent"}, attack["id"]

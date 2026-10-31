@@ -144,7 +144,7 @@ def main(base_url: str) -> None:
         f"| Reviewed-query fallbacks | {summary['certified_fallbacks']} |",
         "",
         "These tasks were used while developing the agents, so read this as a regression "
-        "suite, not an unbiased benchmark. Phase 5 adds a larger held-out benchmark and "
+        "suite, not an unbiased benchmark. The held-out benchmark (`evals/benchmark.py`) "
         "compares baseline RAG with the multi-agent system.",
         "",
         "## Tasks",
