@@ -18,12 +18,15 @@ from decimal import Decimal
 from typing import Any
 
 import sqlglot
+from opentelemetry import trace
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlglot import exp
 
 from app.analytics.schema import ALLOWED_TABLES, READER_ROLE, SCHEMA
+
+tracer = trace.get_tracer("app.analytics")
 
 # Functions a query may call. Typed sqlglot expressions are matched by class name, others
 # (exp.Anonymous) by SQL name. Anything else — pg_sleep, set_config, dblink, pg_read_file,
@@ -166,6 +169,14 @@ class SQLExecutor:
 
     async def run(self, sql: str) -> QueryResult:
         """Execute an already validated query with least privilege. Never commits."""
+        with tracer.start_as_current_span(
+            "sql.execute", attributes={"db.system": "postgresql"}
+        ) as span:
+            result = await self._run(sql)
+            span.set_attribute("db.response.returned_rows", len(result.rows))
+            return result
+
+    async def _run(self, sql: str) -> QueryResult:
         started = time.perf_counter()
         async with self.engine.connect() as conn:
             try:

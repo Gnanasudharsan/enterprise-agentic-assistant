@@ -79,6 +79,8 @@ SCHEMA_DOC = """\
 Schema `analytics` (PostgreSQL 16). Synthetic data for Helio Systems, July–October 2026.
 Convention: monthly onboarding metrics are reported by contract signing month (the cohort,
 contract_signed_on) unless the question explicitly asks about go-live month.
+Not recorded here: customer churn or cancellations, invoices and payments, product usage,
+satisfaction scores (NPS, CSAT), and anything about employees.
 
 analytics.customers — one row per paying customer
   customer_id int PK, name text, plan text ('Standard' | 'Enterprise'),

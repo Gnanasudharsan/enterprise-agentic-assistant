@@ -37,6 +37,15 @@ services:
       TRACKER_BACKEND: ${TRACKER_BACKEND:-local}
       GITHUB_REPO: ${GITHUB_REPO:-}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      # Second-stage reranking of retrieved passages ("llm" or "none").
+      RERANKER: ${RERANKER:-none}
+      # OpenTelemetry: TRACING=otlp with `docker compose --profile tracing up` sends traces
+      # to the bundled Jaeger (UI on http://localhost:16686). LangSmith: set
+      # LANGSMITH_TRACING=true and LANGSMITH_API_KEY.
+      TRACING: ${TRACING:-none}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318}
+      LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
+      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
     volumes:
       - ./datasets:/app/datasets:ro
       - trackerdata:/app/data
@@ -45,6 +54,13 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  jaeger:
+    image: jaegertracing/jaeger:2.11.0
+    profiles: ["tracing"]
+    ports:
+      - "16686:16686" # UI
+      - "4318:4318" # OTLP/HTTP
 
 volumes:
   pgdata:

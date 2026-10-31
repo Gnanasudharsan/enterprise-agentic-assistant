@@ -70,9 +70,11 @@ class StubRetriever:
         self.chunks: list[RetrievedChunk] = []
         self.error: Exception | None = None
         self.queries: list[tuple[str, list[str]]] = []
+        self.options: list[dict] = []  # mode / rerank per search
 
     async def search(self, session, query, groups, **kwargs) -> list[RetrievedChunk]:
         self.queries.append((query, list(groups)))
+        self.options.append(kwargs)
         if self.error:
             raise self.error
         return self.chunks

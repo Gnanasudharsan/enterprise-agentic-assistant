@@ -240,3 +240,20 @@ def test_plan_rejects_invalid_dependencies(client, llm):
     supervisor = body["trace"][0]
     assert supervisor["status"] == "fallback"
     assert "only data steps can depend" in supervisor["detail"]["problems"][0]
+
+
+def test_data_agent_can_say_the_data_has_no_such_measure(client, llm, sql):
+    llm.json_results = [
+        plan_json(("data", "customers churned in October")),
+        json.dumps({"unanswerable": "there is no churn or cancellation field"}),
+    ]
+    body = client.post("/api/v1/agent/run", json={"prompt": "How many customers churned?"}).json()
+
+    [table] = body["tables"]
+    assert table["index"] is None and table["unanswerable"] is True
+    assert "no churn or cancellation field" in table["error"]
+    assert sql.queries == []  # no proxy query, and no reviewed-query fallback either
+    data_event = next(e for e in body["trace"] if e["node"] == "data")
+    assert data_event["status"] == "no_data"
+    # The analyst is told what is missing.
+    assert "does not contain this" in llm.calls[-1][-2].content

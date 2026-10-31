@@ -3,7 +3,7 @@ import json
 import pytest
 
 from app.agents.catalog import match_certified
-from app.agents.plan import fallback_plan, parse_plan
+from app.agents.plan import Plan, fallback_plan, parse_plan
 from app.agents.tables import chart_hint, to_markdown
 
 
@@ -91,5 +91,31 @@ def test_target_questions_always_get_research():
     assert [s.agent for s in adjusted.steps] == ["data", "research"]
     assert adjusted.steps[1].id == "s2" and notes
 
-    unchanged, notes = apply_plan_rules(plan, "How many tickets in September?")
-    assert unchanged == plan and notes == []
+    measured, notes = apply_plan_rules(plan, "How many tickets in September?")
+    assert [s.agent for s in measured.steps] == ["data", "research"]
+    assert notes == ["added a research step: every question checks the documents"]
+
+
+def test_every_question_checks_the_documents_except_small_talk():
+    from app.agents.plan import apply_plan_rules
+
+    empty = Plan(reasoning="general knowledge", steps=[])
+    adjusted, _ = apply_plan_rules(empty, "What is the max hotel rate in San Francisco?")
+    assert [(s.agent, s.query) for s in adjusted.steps] == [
+        ("research", "What is the max hotel rate in San Francisco?")
+    ]
+    for message in ("Thanks, that's really helpful!", "hi", "Great, thank you."):
+        assert apply_plan_rules(empty, message) == (empty, [])
+
+    researched = parse_plan(plan_json(("research", "PTO policy")), 4)
+    assert apply_plan_rules(researched, "How much PTO do I get?") == (researched, [])
+    full = parse_plan(plan_json(*[("data", f"metric {i}") for i in range(3)]), 4)
+    assert apply_plan_rules(full, "Compare three metrics", max_steps=3) == (full, [])
+
+
+def test_added_research_step_keeps_the_action_last():
+    from app.agents.plan import apply_plan_rules
+
+    plan = parse_plan(plan_json(("data", "tickets"), ("action", "file it")), 4, actions=True)
+    adjusted, _ = apply_plan_rules(plan, "Count tickets and file an issue")
+    assert [s.agent for s in adjusted.steps] == ["data", "research", "action"]
