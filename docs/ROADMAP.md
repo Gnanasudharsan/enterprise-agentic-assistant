@@ -94,7 +94,7 @@ Legend: ✅ done · ⏳ in progress · ⬜ planned
 
 **Acceptance (verified):** `evals/benchmark.py` reproduces the three-way report, `evals/security_eval.py` the security report, and every report records its model, judge, prices, and date.
 
-## Phase 6 — Deployment & presentation ⏳
+## Phase 6 — Deployment & presentation ✅
 
 **Deliverable:** A deployed, reproducible application that reviewers can inspect.
 
@@ -105,5 +105,5 @@ Legend: ✅ done · ⏳ in progress · ⬜ planned
 - [x] Complete UI: conversation, citations, data cards, trace, approvals, audit log, access screen
 - [x] Published evaluation results (README, `evals/reports/`)
 - [x] Architecture diagram, screenshots, and a five-minute demo script ([DEMO.md](DEMO.md))
-- [ ] Deployed to Cloud Run (waiting on project, billing, and a fresh `gcloud auth login`)
+- [x] Deployed to Cloud Run: https://helio-assistant-vpgub2ic6q-uc.a.run.app. Verified: answers with the real model, the access code, rate limiting that forged `X-Forwarded-For` headers can't bypass, trace-linked logs, and an uptime check
 - [ ] Demo video (record from DEMO.md)

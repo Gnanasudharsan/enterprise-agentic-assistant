@@ -12,7 +12,12 @@ cd "$(dirname "$0")"
 source ./config.sh
 
 : "${OPENAI_API_KEY:?Set OPENAI_API_KEY in your shell first}"
+export CLOUDSDK_CORE_DISABLE_PROMPTS=1  # never stop at a question
 exists() { "$@" >/dev/null 2>&1; }
+retry() {  # newly enabled APIs take a minute or two to propagate
+  for i in 1 2 3 4 5 6 7 8 9 10; do "$@" && return; echo "   (retrying in 20 s)"; sleep 20; done
+  "$@"
+}
 secret() {  # name, value on stdin
   exists gcloud secrets describe "$1" --project "$PROJECT_ID" ||
     gcloud secrets create "$1" --project "$PROJECT_ID" --replication-policy=automatic
@@ -33,7 +38,7 @@ gcloud services enable --project "$PROJECT_ID" run.googleapis.com sqladmin.googl
 
 echo "== Artifact Registry"
 exists gcloud artifacts repositories describe "$REPO" --project "$PROJECT_ID" --location "$REGION" ||
-  gcloud artifacts repositories create "$REPO" --project "$PROJECT_ID" --location "$REGION" \
+  retry gcloud artifacts repositories create "$REPO" --project "$PROJECT_ID" --location "$REGION" \
     --repository-format docker --description "Helio Assistant images"
 
 echo "== Service account (least privilege: SQL client, its own secrets, traces, logs, metrics)"
@@ -46,7 +51,7 @@ done
 
 echo "== Cloud SQL (PostgreSQL 16 + pgvector) — takes several minutes the first time"
 if ! exists gcloud sql instances describe "$SQL_INSTANCE" --project "$PROJECT_ID"; then
-  gcloud sql instances create "$SQL_INSTANCE" --project "$PROJECT_ID" --region "$REGION" \
+  retry gcloud sql instances create "$SQL_INSTANCE" --project "$PROJECT_ID" --region "$REGION" \
     --database-version POSTGRES_16 --edition ENTERPRISE --tier "$SQL_TIER" \
     --storage-size 10 --storage-type SSD --availability-type zonal \
     --backup-start-time 03:00 --retained-backups-count 3

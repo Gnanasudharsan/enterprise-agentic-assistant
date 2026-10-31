@@ -65,15 +65,8 @@ async def open_checkpointer(settings: Settings) -> AsyncIterator[BaseCheckpointS
         return
 
     from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-    from psycopg.rows import dict_row
-    from psycopg_pool import AsyncConnectionPool
 
-    pool = AsyncConnectionPool(
-        conninfo=settings.psycopg_url,
-        max_size=settings.db_pool_size,
-        open=False,
-        kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row},
-    )
+    pool = checkpoint_pool(settings)
     await pool.open()
     try:
         saver = AsyncPostgresSaver(pool)
@@ -81,3 +74,18 @@ async def open_checkpointer(settings: Settings) -> AsyncIterator[BaseCheckpointS
         yield saver
     finally:
         await pool.close()
+
+
+def checkpoint_pool(settings: Settings):
+    """An unopened psycopg pool for the checkpointer, sized like the SQLAlchemy pool."""
+    from psycopg.rows import dict_row
+    from psycopg_pool import AsyncConnectionPool
+
+    return AsyncConnectionPool(
+        conninfo=settings.psycopg_url,
+        # psycopg_pool defaults to min_size=4, which small pools (DB_POOL_SIZE<4) undercut.
+        min_size=1,
+        max_size=settings.db_pool_size,
+        open=False,
+        kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row},
+    )

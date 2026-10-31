@@ -4,7 +4,8 @@
 
 ![Status](https://img.shields.io/badge/status-in%20development-yellow)
 [![CI](https://github.com/Gnanasudharsan/enterprise-agentic-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/Gnanasudharsan/enterprise-agentic-assistant/actions/workflows/ci.yml)
-![Phase](https://img.shields.io/badge/phase-6%20%E2%80%94%20deployable-blue)
+![Phase](https://img.shields.io/badge/phase-6%20%E2%80%94%20deployed-blue)
+[![Live demo](https://img.shields.io/badge/demo-Cloud%20Run-4285F4)](https://helio-assistant-vpgub2ic6q-uc.a.run.app)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -14,6 +15,7 @@
 
 ## Table of Contents
 
+- [Live demo](#live-demo)
 - [Why this project](#why-this-project)
 - [What it does](#what-it-does)
 - [Architecture](#architecture)
@@ -59,6 +61,10 @@ This assistant handles the whole workflow:
 | 🛠️ **Controlled actions** | Typed tool calls through MCP adapters. The backend enforces approval and permissions. |
 | 🧾 **Auditability** | Shows which sources were used, which tools ran, where approval was required, and what couldn't be verified. |
 | 📏 **Measured quality** | Reproducible evaluations for retrieval, citations, task success, safety, latency, and cost. |
+
+## Live demo
+
+**https://helio-assistant-vpgub2ic6q-uc.a.run.app** runs on Google Cloud Run with Cloud SQL. It uses a paid model, so it asks for an access code; ask the author for one. The service scales to zero when idle, so the first request after a while takes a few seconds.
 
 ## Screenshots
 
@@ -190,7 +196,7 @@ Each phase ends with a working, **tested** deliverable. Full checklist: [`docs/R
 | 3 | LangGraph multi-agent orchestration | Complex questions trigger coordinated retrieval + SQL analysis | ✅ Done |
 | 4 | MCP & controlled actions | Drafted task → approval → created only after authorization | ✅ Done |
 | 5 | Evaluation, reliability & security | Reproducible reports: baseline RAG vs. hybrid vs. agentic | ✅ Done |
-| 6 | Deployment & presentation | Deployed on Cloud Run with docs, diagrams, eval results, demo | ⏳ Next |
+| 6 | Deployment & presentation | Deployed on Cloud Run with docs, diagrams, eval results, demo | ✅ Done (demo video pending) |
 
 Changes are logged in [`CHANGELOG.md`](CHANGELOG.md).
 

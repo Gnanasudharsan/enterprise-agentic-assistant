@@ -123,7 +123,7 @@ jobs:
           docker run -d --name app --network host -e PORT=8080 \
             -e POSTGRES_HOST=localhost -e POSTGRES_PASSWORD=test \
             -e SEED_DOCUMENTS_ON_STARTUP=true -e ACCESS_CODE=ci-code \
-            -e RATE_LIMIT_REQUESTS=5 -e DAILY_TOKEN_BUDGET=100000 helio-assistant
+            -e RATE_LIMIT_REQUESTS=5 -e DAILY_TOKEN_BUDGET=100000 -e DB_POOL_SIZE=3 helio-assistant
           for i in $(seq 1 60); do curl -sf localhost:8080/health/ready && exit 0; sleep 2; done
           docker logs app; exit 1
       - name: Frontend, gate, and an answer

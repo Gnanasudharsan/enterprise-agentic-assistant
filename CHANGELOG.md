@@ -23,6 +23,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 ### Changed
 - Database pool sizes are configurable (`DB_POOL_SIZE`) for small Cloud SQL tiers.
 
+### Fixed
+- The checkpointer pool used psycopg's default `min_size=4`, which failed with
+  `DB_POOL_SIZE` below 4. It now uses `min_size=1`, and CI starts the image with a pool of 3.
+- `setup.sh` retries while newly enabled APIs propagate and never stops at a prompt.
+
+### Deployed
+- https://helio-assistant-vpgub2ic6q-uc.a.run.app (Cloud Run + Cloud SQL, us-central1).
+
 ## [0.5.0] - 2026-10-31 (Phase 5: Evaluation, reliability & security)
 
 ### Added
