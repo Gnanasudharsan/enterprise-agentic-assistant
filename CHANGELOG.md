@@ -5,6 +5,41 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-31 (Phase 5: Evaluation, reliability & security)
+
+### Added
+- Held-out benchmark (32 tasks) and `evals/benchmark.py`: vector RAG vs. hybrid + rerank vs.
+  multi-agent through the API, with task success, Recall@5, citation validity, judged
+  groundedness, latency, tokens, and cost; the first run and the post-fix run are published.
+- Security evaluation (`evals/security_eval.py`): 13 direct and indirect prompt-injection
+  attacks (poisoned documents in `datasets/adversarial/`), 9 API-level unauthorized-action
+  attempts, integrity checks.
+- Defenses: output sanitizing of answers and drafted issues (images removed, links limited to
+  `ANSWER_LINK_HOSTS`), redaction of instruction-like paragraphs in passages, escaping of
+  evidence delimiters, an evidence reminder after the sources; the UI never renders images
+  and sets a CSP for images.
+- Per-request usage metering (`MeteredLLM`): `usage.llm_calls` and tokens on `/chat` and
+  `/agent/run`, stored on `agent_runs` (migration `0005`); shown in the trace panel.
+- OpenTelemetry tracing (`TRACING=otlp|console`): request, graph-node, model-call (with token
+  counts), retrieval, SQL, and MCP spans; Jaeger under the Compose `tracing` profile;
+  LangSmith variables passed through.
+- `/chat` options `retrieval_mode` (`hybrid` / `vector` / `keyword`) and `rerank`.
+- Cross-encoder rerankers in the retrieval evaluation (`--cross-encoder`).
+- Tests pinning the benchmark's expected numbers to the seed, plus sanitizer, redaction,
+  metering, and tracing tests. ADRs 0005 (evaluation protocol) and 0006 (injection defenses).
+
+### Changed
+- Every question that is not small talk also searches the documents (plan rule); the planner
+  prompt treats policy questions as research questions even when related data exists.
+- Rerankers see the passage's heading path, as the embedder does (fixes ranking of passages
+  whose identifiers appear only in the title, e.g. INC-198).
+- The reranker is always available per request; `RERANKER` sets the default.
+- The data agent can answer that the data has no such measure (`unanswerable`, step status
+  `no_data`) instead of inventing a proxy metric; the schema description lists what the data
+  does not record.
+- Answers that state figures without citing any evidence are labelled unverified, and the
+  analyst is told to say when the evidence does not answer the question.
+
 ## [0.4.0] - 2026-10-30 (Phase 4: MCP & controlled actions)
 
 ### Added
