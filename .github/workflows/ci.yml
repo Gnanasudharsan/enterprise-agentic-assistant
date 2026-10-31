@@ -103,6 +103,41 @@ jobs:
       - if: always()
         run: docker compose down -v
 
+  production-image:
+    name: Production image (API + frontend, access code)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: assistant
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: assistant
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U assistant" --health-interval 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t helio-assistant .
+      - name: Start like Cloud Run does (PORT, production settings, access code)
+        run: |
+          docker run -d --name app --network host -e PORT=8080 \
+            -e POSTGRES_HOST=localhost -e POSTGRES_PASSWORD=test \
+            -e SEED_DOCUMENTS_ON_STARTUP=true -e ACCESS_CODE=ci-code \
+            -e RATE_LIMIT_REQUESTS=5 -e DAILY_TOKEN_BUDGET=100000 helio-assistant
+          for i in $(seq 1 60); do curl -sf localhost:8080/health/ready && exit 0; sleep 2; done
+          docker logs app; exit 1
+      - name: Frontend, gate, and an answer
+        run: |
+          curl -sf localhost:8080/ | grep -q '<div id="root">'
+          curl -sf localhost:8080/some/client/route | grep -q '<div id="root">'
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8080/api/v1/info)" = 401
+          curl -sf -H 'X-Access-Code: ci-code' -X POST localhost:8080/api/v1/chat \
+            -H 'content-type: application/json' -d '{"prompt":"How many unused PTO days carry over?"}' > a.json
+          python3 -c "import json; d=json.load(open('a.json')); assert d['citations']==[1], d"
+          docker logs app 2>&1 | grep -q '"severity": "INFO"'  # structured logs
+      - if: always()
+        run: docker rm -f app
+
   frontend:
     name: Frontend typecheck + build
     runs-on: ubuntu-latest
