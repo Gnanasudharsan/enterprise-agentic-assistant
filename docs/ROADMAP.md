@@ -94,12 +94,16 @@ Legend: ✅ done · ⏳ in progress · ⬜ planned
 
 **Acceptance (verified):** `evals/benchmark.py` reproduces the three-way report, `evals/security_eval.py` the security report, and every report records its model, judge, prices, and date.
 
-## Phase 6 — Deployment & presentation ⬜
+## Phase 6 — Deployment & presentation ⏳
 
 **Deliverable:** A deployed, reproducible application that reviewers can inspect.
 
-- [ ] Docker images and Cloud Run deployment
-- [ ] Health checks and monitoring
-- [ ] Complete UI: conversation, citations, trace, approvals
-- [ ] Published evaluation results
-- [ ] Architecture diagrams and demo video
+- [x] Production image: API + built frontend in one container, tested in CI (gate, SPA routes, structured logs) and against a Unix-socket database from scratch
+- [x] Public-demo limits enforced by the backend: access code (guesses rate limited), per-client rate limits, daily token budget with offline fallback
+- [x] Cloud Run + Cloud SQL (PostgreSQL 16 + pgvector) + Secret Manager, scripted: `deploy/gcp/setup.sh`, `deploy.sh`, `monitoring.sh`, `teardown.sh`
+- [x] Health checks and monitoring: liveness and readiness, JSON logs for Cloud Logging linked to traces, Cloud Trace export, uptime check and alert
+- [x] Complete UI: conversation, citations, data cards, trace, approvals, audit log, access screen
+- [x] Published evaluation results (README, `evals/reports/`)
+- [x] Architecture diagram, screenshots, and a five-minute demo script ([DEMO.md](DEMO.md))
+- [ ] Deployed to Cloud Run (waiting on project, billing, and a fresh `gcloud auth login`)
+- [ ] Demo video (record from DEMO.md)

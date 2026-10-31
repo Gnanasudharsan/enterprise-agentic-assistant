@@ -4,7 +4,7 @@
 
 ![Status](https://img.shields.io/badge/status-in%20development-yellow)
 [![CI](https://github.com/Gnanasudharsan/enterprise-agentic-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/Gnanasudharsan/enterprise-agentic-assistant/actions/workflows/ci.yml)
-![Phase](https://img.shields.io/badge/phase-5%20%E2%80%94%20evaluated%20%26%20hardened-blue)
+![Phase](https://img.shields.io/badge/phase-6%20%E2%80%94%20deployable-blue)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -60,7 +60,21 @@ This assistant handles the whole workflow:
 | 🧾 **Auditability** | Shows which sources were used, which tools ran, where approval was required, and what couldn't be verified. |
 | 📏 **Measured quality** | Reproducible evaluations for retrieval, citations, task success, safety, latency, and cost. |
 
+## Screenshots
+
+| Cross-source answer with cited data | Execution trace |
+| --- | --- |
+| ![A cited answer about the September onboarding slowdown with query-result charts](docs/images/answer-with-data.png) | ![The run's plan and a waterfall of the parallel agent steps, with model calls and tokens](docs/images/trace.png) |
+| **Drafted action waiting for approval** | **Access screen of the deployed demo** |
+| ![A proposed tracker issue with approve, edit, and reject](docs/images/approval.png) | ![The access-code screen](docs/images/access-gate.png) |
+
+A five-minute walkthrough script is in [docs/DEMO.md](docs/DEMO.md).
+
 ## Architecture
+
+![Deployment architecture: one Cloud Run container with guards, supervisor, agents, analyst, and approval; Cloud SQL, OpenAI, Secret Manager, and observability alongside](docs/images/architecture.svg)
+
+The agent flow in detail:
 
 ```mermaid
 flowchart TD
@@ -422,6 +436,20 @@ cd backend && .venv/bin/python -m app.analytics.cli query "SELECT to_char(create
 ```
 
 Queries from the CLI go through the same validator and read-only executor as the data agent.
+
+### Production image and deployment
+
+The root `Dockerfile` builds one image that contains the API and the built frontend (`STATIC_DIR`), ready for Cloud Run. Running it locally works the same way:
+
+```bash
+docker build -t helio-assistant . && docker run --rm -p 8080:8080 --network enterprise-agentic-assistant_default -e POSTGRES_HOST=db -e OPENAI_API_KEY -e ACCESS_CODE=try-me helio-assistant
+```
+
+Then open http://localhost:8080 and enter the code.
+
+Public deployments are bounded by `ACCESS_CODE`, `RATE_LIMIT_REQUESTS` (per client per `RATE_LIMIT_WINDOW_SECONDS`), and `DAILY_TOKEN_BUDGET`. Once the budget is spent, answers switch to the offline model until midnight UTC.
+
+Google Cloud (Cloud Run + Cloud SQL + Secret Manager) is fully scripted, including costs and teardown, in [deploy/gcp/README.md](deploy/gcp/README.md).
 
 ### 3. Run the frontend
 
