@@ -1,0 +1,98 @@
+---
+const decisions = [
+  {
+    chose: "PostgreSQL + pgvector",
+    over: "a dedicated vector database",
+    why: "Vectors, full-text search, permissions, analytics, agent checkpoints, and the audit log live in one transactional database. Access control runs inside the retrieval SQL, so a restricted passage never leaves the database for the wrong reader.",
+    proof: "0 restricted facts leaked across every evaluation",
+  },
+  {
+    chose: "Hybrid retrieval with RRF",
+    over: "vector search alone",
+    why: "Embeddings blur exact identifiers like INC-204 or SUP-003. Full-text search catches them. Reciprocal-rank fusion merges both rankings with no score calibration to tune.",
+    proof: "Recall@5 97% → 100% · MRR 0.883 → 0.901",
+  },
+  {
+    chose: "LangGraph",
+    over: "a free-form agent loop",
+    why: "An explicit graph gives parallel fan-out, step dependencies, Postgres checkpoints that resume a failed run, and a first-class interrupt for human approval. Every path is a path I chose.",
+    proof: "Failed runs resume without re-planning or re-querying",
+  },
+  {
+    chose: "Validated, read-only SQL",
+    over: "trusting the model's queries",
+    why: "A sqlglot validator allows only analytics tables and safe functions, in a single SELECT. The query then runs in a read-only transaction as a role that can't see anything else, so the database refuses even if the validator misses something.",
+    proof: "Injected DELETE and cross-schema reads: 0 succeeded",
+  },
+  {
+    chose: "MCP for tools",
+    over: "calling APIs from the agent",
+    why: "The tracker runs as its own process with only its own credentials. The model sees typed schemas, never secrets. Any other MCP server plugs into the same gateway.",
+    proof: "Model key and database URL never reach the tool process",
+  },
+  {
+    chose: "Approval enforced by the backend",
+    over: "asking the model to ask first",
+    why: "The graph pauses at an interrupt. An approval is bound to a hash of the exact arguments, permissions are re-checked right before execution, and each call runs at most once.",
+    proof: "9/9 live bypass attempts blocked · 0 executions",
+  },
+  {
+    chose: "gpt-4.1-mini, judged by gpt-4.1",
+    over: "the biggest model everywhere",
+    why: "The small model does the work. A stronger one grades groundedness against exactly the evidence the system saw, so the system never grades itself.",
+    proof: "$2.18 per 1,000 questions · 100% groundedness",
+  },
+  {
+    chose: "Cloud Run + Cloud SQL",
+    over: "Kubernetes",
+    why: "One container that scales to zero, one managed database, secrets in Secret Manager, traces in Cloud Trace. A public demo with a hard daily budget doesn't need a cluster.",
+    proof: "≈ $10 / month idle · deployed by two scripts",
+  },
+];
+---
+<section class="section decisions" id="decisions">
+  <div class="wrap">
+    <span class="eyebrow reveal">Decisions</span>
+    <h2 class="h2 reveal" style="--d:1">Why this, <span class="serif glow-text">not that.</span></h2>
+    <p class="lede reveal" style="--d:2">
+      Every choice was made against a real alternative and, wherever possible, settled by measurement.
+      Seven of them are written up as architecture decision records in the repository.
+    </p>
+
+    <div class="dec-grid">
+      {decisions.map((d, i) => (
+        <article class="card spot dec reveal" style={`--d:${i % 2}`}>
+          <div class="dec-top">
+            <span class="mono dec-i">{String(i + 1).padStart(2, "0")}</span>
+            <span class="dec-vs mono">over {d.over}</span>
+          </div>
+          <h3 class="dec-chose">{d.chose}</h3>
+          <p>{d.why}</p>
+          <span class="dec-proof mono"><i></i>{d.proof}</span>
+        </article>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .dec-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 64px; }
+  .dec { display: flex; flex-direction: column; padding: 28px 30px 26px; }
+  .dec-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .dec-i { color: var(--muted); font-size: 12px; }
+  .dec-vs { color: var(--muted); font-size: 12px; text-decoration: line-through; text-decoration-color: rgba(255, 79, 123, 0.6); }
+  .dec-chose { margin: 18px 0 0; font-size: clamp(24px, 2.2vw, 30px); font-weight: 600; letter-spacing: -0.03em; line-height: 1.15; }
+  .dec p { margin: 14px 0 22px; color: var(--text-2); font-size: 16px; }
+  .dec-proof {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: auto;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    color: var(--sun);
+    font-size: 12.5px;
+  }
+  .dec-proof i { width: 6px; height: 6px; border-radius: 50%; background: var(--sun); box-shadow: 0 0 10px var(--sun); }
+  @media (max-width: 880px) { .dec-grid { grid-template-columns: 1fr; } }
+</style>

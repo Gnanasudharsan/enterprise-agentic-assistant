@@ -1,0 +1,92 @@
+---
+import { author, code, corpus, links } from "../data/facts";
+const stack = [
+  ["FastAPI", "async API, streaming, typed schemas"],
+  ["LangGraph", "planner, agents, checkpoints, approvals"],
+  ["PostgreSQL 16 + pgvector", "vectors, full-text, data, audit"],
+  ["MCP", "isolated, typed tool servers"],
+  ["OpenAI", "gpt-4.1-mini, text-embedding-3-small"],
+  ["sqlglot", "SQL validation before execution"],
+  ["React + TypeScript", "the workspace UI"],
+  ["OpenTelemetry", "traces with per-call token counts"],
+  ["Cloud Run + Cloud SQL", "scale-to-zero production"],
+  ["Astro + Vercel", "this page"],
+];
+---
+<section class="section stack" id="stack">
+  <div class="wrap">
+    <span class="eyebrow reveal">By the numbers</span>
+    <div class="nums reveal" style="--d:1">
+      <div><b>{code.python}</b><span>lines of Python in the backend</span></div>
+      <div><b>{code.unitTests + code.integrationTests}</b><span>automated tests, {code.integrationTests} on real Postgres</span></div>
+      <div><b>{code.adrs}</b><span>architecture decision records</span></div>
+      <div><b>{corpus.documents}</b><span>documents in the knowledge base ({corpus.restricted} restricted)</span></div>
+      <div><b>{(corpus.events + corpus.checks + corpus.tickets + corpus.customers).toLocaleString()}</b><span>rows of synthetic company data</span></div>
+      <div><b>5</b><span>CI jobs on every push</span></div>
+    </div>
+
+    <ul class="stack-list reveal" style="--d:2">
+      {stack.map(([n, r]) => <li><b>{n}</b><span>{r}</span></li>)}
+    </ul>
+    <p class="fictional reveal">Helio Systems is a fictional company, and all of its documents and data are synthetic, so the system can be shown and attacked in public.</p>
+  </div>
+</section>
+
+<footer class="cta">
+  <div class="cta-glow" aria-hidden="true"></div>
+  <div class="wrap cta-inner">
+    <h2 class="display reveal">See it <span class="serif glow-text">think.</span></h2>
+    <p class="lede reveal" style="--d:1">Ask it something only your documents and your data can answer together.</p>
+    <div class="cta-actions reveal" style="--d:2">
+      <a class="btn btn-primary" href={links.demo} target="_blank" rel="noopener">Open the live demo</a>
+      <a class="btn btn-ghost" href={links.repo} target="_blank" rel="noopener">Read the code</a>
+    </div>
+    <p class="cta-note reveal" style="--d:3">The demo asks for an access code because it spends real model credits.</p>
+  </div>
+  <div class="wrap foot">
+    <span>Designed and built by <a href={links.author} target="_blank" rel="noopener">{author}</a></span>
+    <span class="foot-links">
+      <a href={links.repo} target="_blank" rel="noopener">GitHub</a>
+      <a href={links.benchmark} target="_blank" rel="noopener">Benchmark</a>
+      <a href={links.security} target="_blank" rel="noopener">Security report</a>
+      <a href={links.adrs} target="_blank" rel="noopener">Decision records</a>
+    </span>
+  </div>
+</footer>
+
+<style>
+  .nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 32px; border-top: 1px solid var(--line); }
+  .nums div { display: grid; gap: 6px; padding: 30px 0; border-bottom: 1px solid var(--line); }
+  .nums b { font-size: clamp(40px, 4.6vw, 60px); font-weight: 600; letter-spacing: -0.045em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .nums span { color: var(--muted); font-size: 15px; }
+  .stack-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 48px; margin: 72px 0 0; padding: 0; list-style: none; }
+  .stack-list li { display: flex; justify-content: space-between; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .stack-list b { font-weight: 500; }
+  .stack-list span { color: var(--muted); font-size: 15px; text-align: right; }
+  .fictional { margin: 32px 0 0; color: var(--muted); font-size: 14px; }
+
+  .cta { position: relative; padding: clamp(120px, 18vw, 220px) 0 40px; overflow: hidden; border-top: 1px solid var(--line); text-align: center; isolation: isolate; }
+  .cta-glow {
+    position: absolute;
+    left: 50%;
+    bottom: -55%;
+    width: 1100px;
+    height: 900px;
+    z-index: -1;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(255, 138, 61, 0.42), rgba(255, 79, 123, 0.2) 45%, rgba(155, 107, 255, 0.12) 65%, transparent);
+    transform: translateX(-50%);
+    filter: blur(20px);
+  }
+  .cta .lede { margin-left: auto; margin-right: auto; }
+  .cta-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 36px; }
+  .cta-note { margin: 16px 0 0; color: var(--muted); font-size: 13px; }
+  .foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; margin-top: clamp(100px, 14vw, 160px); padding-top: 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+  .foot a { color: var(--text-2); transition: color 0.2s; }
+  .foot a:hover { color: var(--text); }
+  .foot-links { display: flex; flex-wrap: wrap; gap: 20px; }
+  @media (max-width: 760px) {
+    .nums { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 20px; }
+    .stack-list { grid-template-columns: 1fr; }
+  }
+</style>

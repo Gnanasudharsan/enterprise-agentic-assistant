@@ -1,0 +1,61 @@
+---
+const phases = [
+  { p: "0", date: "Oct 29", title: "Plan before code", body: "Architecture, roadmap, and the acceptance criteria every later phase had to meet.", note: "ADR 0001" },
+  { p: "1", date: "Oct 29", title: "Foundation", body: "FastAPI, PostgreSQL, Docker, and streaming answers, plus a fake model so CI never needs an API key.", note: "Prompt in, answer out" },
+  { p: "2", date: "Oct 29", title: "Grounded retrieval", body: "Ingestion, pgvector and full-text search fused with RRF, permissions inside SQL, and citations validated against what the model was actually shown.", note: "Recall@5 100%" },
+  { p: "3", date: "Oct 30", title: "Agents that query data", body: "LangGraph supervisor, docs and data agents, synthetic company data, and read-only SQL with self-repair. The first agent eval scored 70%. Its failures became step dependencies and a planning rule.", note: "70% → 100% on the regression suite", broke: true },
+  { p: "4", date: "Oct 30", title: "Actions with consent", body: "An issue tracker exposed over MCP, drafts that pause the run, and approvals bound to their arguments and recorded in an audit log.", note: "15 attack scenarios · 0 executions" },
+  { p: "5", date: "Oct 31", title: "Measure everything", body: "A held-out benchmark against two RAG baselines, a prompt-injection suite, OpenTelemetry tracing, and per-request cost metering. The first run exposed routing bugs and a hallucination pattern.", note: "78% held out → 91%", broke: true },
+  { p: "6", date: "Oct 31", title: "Ship it", body: "One production image on Cloud Run with Cloud SQL, an access code, rate limits, and a daily budget. The first cold start crashed on a connection-pool setting the tests never exercised.", note: "Live · fixed in CI", broke: true },
+];
+---
+<section class="section journey" id="journey">
+  <div class="wrap">
+    <span class="eyebrow reveal">The journey</span>
+    <h2 class="h2 reveal" style="--d:1">Seven phases. <span class="serif glow-text">Three</span> days.</h2>
+    <p class="lede reveal" style="--d:2">
+      Each phase ended with something working and tested. The ones marked with a flare are where
+      something broke, and the fix made the system better.
+    </p>
+
+    <ol class="line" data-line>
+      <span class="line-track" aria-hidden="true"><span class="line-fill" data-linefill></span></span>
+      {phases.map((ph, i) => (
+        <li class={`ph reveal ${ph.broke ? "broke" : ""}`} style={`--d:${i % 3}`}>
+          <span class="ph-dot" aria-hidden="true"></span>
+          <div class="ph-meta mono"><span>Phase {ph.p}</span><span>{ph.date}</span></div>
+          <h3 class="h3">{ph.title}</h3>
+          <p>{ph.body}</p>
+          <span class="ph-note mono">{ph.note}</span>
+        </li>
+      ))}
+    </ol>
+  </div>
+</section>
+
+<style>
+  .line { position: relative; margin: 72px 0 0; padding: 0 0 0 44px; list-style: none; }
+  .line-track { position: absolute; left: 11px; top: 8px; bottom: 8px; width: 1px; background: var(--line-2); }
+  .line-fill { position: absolute; inset: 0; background: var(--corona); transform-origin: top; transform: scaleY(var(--fill, 0)); }
+  .ph { position: relative; display: grid; grid-template-columns: 170px minmax(0, 1fr); column-gap: 32px; padding: 0 0 54px; }
+  .ph-dot {
+    position: absolute;
+    left: -38px;
+    top: 6px;
+    width: 13px;
+    height: 13px;
+    border: 1px solid var(--line-2);
+    border-radius: 50%;
+    background: var(--bg);
+  }
+  .ph.broke .ph-dot { border-color: transparent; background: var(--corona); box-shadow: 0 0 18px rgba(255, 120, 70, 0.7); }
+  .ph-meta { grid-row: span 3; display: grid; gap: 4px; align-content: start; padding-top: 2px; color: var(--muted); font-size: 12.5px; }
+  .ph-meta span:first-child { color: var(--text-2); }
+  .ph p { margin: 10px 0 0; max-width: 640px; color: var(--text-2); font-size: 16px; }
+  .ph-note { justify-self: start; margin-top: 14px; padding: 5px 11px; border: 1px solid var(--line); border-radius: 99px; color: var(--text-2); font-size: 12px; }
+  .ph.broke .ph-note { border-color: rgba(255, 138, 61, 0.35); color: var(--sun); }
+  @media (max-width: 720px) {
+    .ph { grid-template-columns: 1fr; }
+    .ph-meta { grid-row: auto; grid-auto-flow: column; justify-content: start; gap: 12px; margin-bottom: 8px; }
+  }
+</style>

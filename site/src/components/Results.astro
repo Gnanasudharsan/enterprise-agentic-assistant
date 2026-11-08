@@ -1,0 +1,255 @@
+---
+import { benchmark as b, rerankers, systems, links } from "../data/facts";
+
+// ---- Chart 1: task success by category: grouped horizontal bars in HTML, so the
+// labels stay readable at any width ----
+const ticks = [0, 25, 50, 75, 100];
+
+// ---- Chart 2: reranker quality vs latency (scatter) ----
+const W2 = 1000, H2 = 400, L2 = 60, R2 = 28, T2 = 48, B2 = 52;
+const xMax = 1300, yMin = 0.87, yMax = 0.98;
+const sx = (ms: number) => L2 + (ms / xMax) * (W2 - L2 - R2);
+const sy = (m: number) => T2 + (1 - (m - yMin) / (yMax - yMin)) * (H2 - T2 - B2);
+const xTicks = [0, 300, 600, 900, 1200];
+const yTicks = [0.88, 0.9, 0.92, 0.94, 0.96, 0.98];
+const labelPos: Record<string, [number, number, string]> = {
+  "Vector only": [10, 16, "start"],
+  "Hybrid (RRF)": [10, -10, "start"],
+  "MiniLM cross-encoder": [10, 16, "start"],
+  "BGE cross-encoder": [10, -12, "start"],
+  "LLM reranker": [-12, -12, "end"],
+};
+const key = (k: string) => k as "vector" | "hybrid" | "agents";
+---
+<section class="section results" id="results">
+  <div class="wrap">
+    <span class="eyebrow reveal">Results</span>
+    <h2 class="h2 reveal" style="--d:1">Measured against the designs it <span class="serif glow-text">had</span> to beat.</h2>
+    <p class="lede reveal" style="--d:2">
+      32 tasks written after the system was built, asked through the same API as a regular employee
+      and scored by deterministic checks plus a stronger judge model. All three systems use the same
+      model, documents, and data.
+    </p>
+
+    <!-- Compare sheet -->
+    <div class="compare reveal">
+      <div class="cmp-head"></div>
+      {systems.map((s) => (
+        <div class={`cmp-sys ${s.key === "agents" ? "me" : ""}`}>
+          <span class="swatch" style={`background:${s.color}`}></span>
+          <b>{s.name}</b>
+          <span>{s.sub}</span>
+        </div>
+      ))}
+
+      <div class="cmp-row big"><span>Task success</span></div>
+      {systems.map((s) => (
+        <div class={`cmp-cell big ${s.key === "agents" ? "me" : ""}`}><span data-count={b.success[key(s.key)]}>{b.success[key(s.key)]}</span>%</div>
+      ))}
+
+      {[
+        ["First, held-out run", (k: string) => `${b.firstRun[key(k)]}%`],
+        ["Recall@5", (k: string) => `${b.recall5[key(k)]}%`],
+        ["Groundedness (judged)", (k: string) => `${b.grounded[key(k)]}%`],
+        ["Latency p50 / p95", (k: string) => `${b.p50[key(k)]} s / ${b.p95[key(k)]} s`],
+        ["Model calls per question", (k: string) => b.calls[key(k)].toFixed(1)],
+        ["Cost per 1,000 questions", (k: string) => `$${b.costPer1k[key(k)].toFixed(2)}`],
+      ].map(([label, fn]) => (
+        <>
+          <div class="cmp-row"><span>{label as string}</span></div>
+          {systems.map((s) => <div class={`cmp-cell ${s.key === "agents" ? "me" : ""}`}>{(fn as (k: string) => string)(s.key)}</div>)}
+        </>
+      ))}
+    </div>
+    <p class="fine reveal">
+      The same 32 tasks, one run each at temperature 0.3, so expect a few points of variation.
+      The first run is the unbiased number; the fixes it triggered are listed in the
+      <a href={links.benchmark} target="_blank" rel="noopener">benchmark report</a>.
+    </p>
+
+    <!-- Chart 1 -->
+    <figure class="chart reveal" data-chart>
+      <figcaption>
+        <h3 class="h3">Where the gap comes from</h3>
+        <p>Task success by question type. On documents alone, all three systems tie. Only the agents can answer questions that need data.</p>
+        <ul class="legend">
+          {systems.map((s) => <li><span class="swatch" style={`background:${s.color}`}></span>{s.name}</li>)}
+        </ul>
+      </figcaption>
+      <div class="hbars" role="img" aria-label="Grouped bar chart of task success by question type for three systems. Table view follows.">
+        <div class="hb-axis" aria-hidden="true">
+          {ticks.map((t) => <span style={`left:${t}%`}>{t}%</span>)}
+        </div>
+        {b.categories.map((c, ci) => (
+          <div class="hb-row">
+            <div class="hb-label"><b>{c.name}</b><span class="mono">{c.n} tasks</span></div>
+            <div class="hb-bars">
+              {ticks.map((t) => <i class="hb-grid" style={`left:${t}%`} aria-hidden="true"></i>)}
+              {systems.map((s, si) => {
+                const v = c[key(s.key)];
+                return (
+                  <div class="hb-track mark" data-tip={`${s.name} · ${c.name}: ${v}% (${Math.round((v / 100) * c.n)} of ${c.n})`}>
+                    <span class={`hb-bar ${v === 0 ? "zero" : ""}`} style={`--v:${v}%; background:${s.color}; --dl:${ci * 80 + si * 40}ms`}></span>
+                    {s.key === "agents" && <span class="hb-val mono" style={`--v:${v}%`}>{v}%</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+      <details class="table-view">
+        <summary>View as table</summary>
+        <table>
+          <thead><tr><th>Question type</th><th>Tasks</th>{systems.map((s) => <th>{s.name}</th>)}</tr></thead>
+          <tbody>{b.categories.map((c) => <tr><td>{c.name}</td><td>{c.n}</td>{systems.map((s) => <td>{c[key(s.key)]}%</td>)}</tr>)}</tbody>
+        </table>
+      </details>
+    </figure>
+
+    <!-- Chart 2 -->
+    <figure class="chart reveal" data-chart>
+      <figcaption>
+        <h3 class="h3">Buying ranking quality with latency</h3>
+        <p>Mean reciprocal rank on the 37-question retrieval gold set, plotted against search time. The LLM reranker ranks best. A local cross-encoder comes close at a quarter of the latency, which makes it the next default to try.</p>
+      </figcaption>
+      <div class="plot plot-scroll">
+        <svg viewBox={`0 0 ${W2} ${H2}`} role="img" aria-label="Scatter plot of ranking quality (MRR) against latency for five retrieval configurations. Table view follows.">
+          {yTicks.map((t) => (
+            <g>
+              <line class="grid" x1={L2} x2={W2 - R2} y1={sy(t)} y2={sy(t)} />
+              <text class="tick" x={L2 - 10} y={sy(t) + 4} text-anchor="end">{t.toFixed(2)}</text>
+            </g>
+          ))}
+          {xTicks.map((t) => <text class="tick" x={sx(t)} y={H2 - 22} text-anchor="middle">{t} ms</text>)}
+          <line class="axis" x1={L2} x2={W2 - R2} y1={H2 - B2} y2={H2 - B2} />
+          <text class="axis-label" x={L2} y={16}>MRR@10 (higher is better)</text>
+          <text class="axis-label" x={W2 - R2} y={H2 - 4} text-anchor="end">Search latency, p50</text>
+          {rerankers.map((r) => {
+            const [dx, dy, anchor] = labelPos[r.name];
+            return (
+              <g class="mark" data-tip={`${r.name}: MRR ${r.mrr.toFixed(3)} · Recall@5 ${r.recall}% · ${r.ms.toLocaleString()} ms`}>
+                <circle class="hit" cx={sx(r.ms)} cy={sy(r.mrr)} r="18" />
+                <circle class={`pt ${r.chosen ? "chosen" : ""}`} cx={sx(r.ms)} cy={sy(r.mrr)} r={r.chosen ? 7 : 5.5} />
+                <text class="pt-label" x={sx(r.ms) + dx} y={sy(r.mrr) + dy} text-anchor={anchor}>{r.name}</text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+      <details class="table-view">
+        <summary>View as table</summary>
+        <table>
+          <thead><tr><th>Configuration</th><th>MRR@10</th><th>Recall@5</th><th>Latency p50</th></tr></thead>
+          <tbody>{rerankers.map((r) => <tr><td>{r.name}</td><td>{r.mrr.toFixed(3)}</td><td>{r.recall}%</td><td>{r.ms.toLocaleString()} ms</td></tr>)}</tbody>
+        </table>
+      </details>
+    </figure>
+    <div class="tip" data-tip-el role="status" aria-live="polite"></div>
+  </div>
+</section>
+
+<style>
+  .compare {
+    display: grid;
+    grid-template-columns: minmax(150px, 1.1fr) repeat(3, minmax(0, 1fr));
+    margin-top: 64px;
+    border-top: 1px solid var(--line);
+  }
+  .cmp-sys { display: grid; gap: 4px; align-content: start; padding: 22px 18px 20px; }
+  .cmp-sys b { font-size: 19px; font-weight: 600; letter-spacing: -0.02em; }
+  .cmp-sys span:last-child { color: var(--muted); font-size: 13.5px; }
+  .cmp-sys .swatch { width: 26px; height: 6px; border-radius: 3px; margin-bottom: 8px; }
+  .cmp-row, .cmp-cell { display: flex; align-items: center; min-height: 58px; padding: 0 18px; border-top: 1px solid var(--line); }
+  .cmp-row { color: var(--muted); font-size: 14.5px; }
+  .cmp-cell { color: var(--text-2); font-size: 16px; font-variant-numeric: tabular-nums; }
+  .cmp-cell.me { color: var(--text); }
+  .me { background: linear-gradient(180deg, rgba(216, 118, 44, 0.09), rgba(216, 118, 44, 0.03)); }
+  .cmp-sys.me { border-radius: 18px 18px 0 0; }
+  .cmp-row.big, .cmp-cell.big { min-height: 110px; }
+  .cmp-cell.big { font-size: clamp(40px, 5vw, 64px); font-weight: 600; letter-spacing: -0.05em; color: var(--text-2); }
+  .cmp-cell.big.me { color: var(--text); }
+  .fine { margin: 18px 0 0; color: var(--muted); font-size: 13.5px; }
+  .fine a { color: var(--text-2); border-bottom: 1px solid var(--line-2); }
+
+  .chart { margin: 96px 0 0; padding: 32px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--bg-2); }
+  .chart figcaption p { max-width: 640px; margin: 10px 0 0; color: var(--text-2); font-size: 16px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 18px; margin: 18px 0 0; padding: 0; list-style: none; color: var(--text-2); font-size: 14px; }
+  .legend li { display: inline-flex; align-items: center; gap: 8px; }
+  .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
+  .plot { margin-top: 26px; }
+  svg { width: 100%; height: auto; overflow: visible; }
+  .grid { stroke: rgba(255, 255, 255, 0.07); stroke-width: 1; }
+  .axis { stroke: rgba(255, 255, 255, 0.2); stroke-width: 1; }
+  .tick { fill: var(--muted); font-family: var(--font-mono); font-size: 11px; }
+  .axis-label { fill: var(--muted); font-size: 12px; }
+  .cat { fill: var(--text); font-size: 14px; }
+  .cat-n { fill: var(--muted); font-family: var(--font-mono); font-size: 11px; }
+  .val { fill: var(--text); font-family: var(--font-mono); font-size: 12px; }
+  .hit { fill: transparent; cursor: default; }
+  .hbars { position: relative; margin-top: 30px; padding-bottom: 30px; }
+  .hb-axis { position: absolute; left: var(--lw); right: 56px; bottom: 0; height: 16px; }
+  .hb-axis span { position: absolute; transform: translateX(-50%); color: var(--muted); font-family: var(--font-mono); font-size: 11px; }
+  .hb-row { --lw: 190px; display: grid; grid-template-columns: var(--lw) 1fr; align-items: center; padding: 10px 0; }
+  .hbars { --lw: 190px; }
+  .hb-label { display: grid; gap: 1px; padding-right: 18px; text-align: right; }
+  .hb-label b { font-weight: 500; font-size: 15px; letter-spacing: -0.01em; }
+  .hb-label span { color: var(--muted); font-size: 11.5px; }
+  .hb-bars { position: relative; display: grid; gap: 2px; margin-right: 56px; }
+  .hb-grid { position: absolute; top: -10px; bottom: -10px; width: 1px; background: rgba(255, 255, 255, 0.07); }
+  .hb-track { position: relative; height: 12px; }
+  .hb-bar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: var(--v);
+    border-radius: 0 4px 4px 0;
+    transform-origin: left;
+    transform: scaleX(0);
+    transition: transform 1.1s var(--ease) var(--dl), filter 0.2s;
+  }
+  .hb-bar.zero { width: 2px; border-radius: 0; }
+  .chart.in .hb-bar { transform: none; }
+  .hb-track:hover .hb-bar { filter: brightness(1.25); }
+  .hb-val { position: absolute; left: calc(var(--v) + 8px); top: 50%; transform: translateY(-50%); color: var(--text); font-size: 12px; }
+  .pt { fill: var(--s-2); stroke: var(--bg-2); stroke-width: 2; }
+  .pt.chosen { fill: var(--s-3); }
+  .mark:hover .pt { r: 8; }
+  .pt-label { fill: var(--text-2); font-size: 12.5px; }
+  .table-view { margin-top: 22px; }
+  .table-view summary { cursor: pointer; color: var(--text-2); font-size: 14px; width: max-content; }
+  .table-view table { width: 100%; margin-top: 14px; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .table-view th, .table-view td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; }
+  .table-view th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  .tip {
+    position: fixed;
+    z-index: 60;
+    padding: 9px 12px;
+    border: 1px solid var(--line-2);
+    border-radius: 12px;
+    background: rgba(18, 20, 26, 0.92);
+    backdrop-filter: blur(12px);
+    color: var(--text);
+    font-size: 13px;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, calc(-100% - 14px));
+    transition: opacity 0.15s;
+    white-space: nowrap;
+  }
+  .tip.on { opacity: 1; }
+  @media (max-width: 760px) {
+    .compare { grid-template-columns: minmax(96px, 0.9fr) repeat(3, minmax(0, 1fr)); font-size: 13px; }
+    .cmp-sys { padding: 16px 8px; }
+    .cmp-sys b { font-size: 14px; }
+    .cmp-sys span:last-child { display: none; }
+    .cmp-row, .cmp-cell { padding: 0 8px; font-size: 13px; }
+    .cmp-cell.big { font-size: 30px; }
+    .chart { padding: 20px 16px; }
+    .hb-row, .hbars { --lw: 112px; }
+    .hb-label b { font-size: 13px; }
+    .hb-bars { margin-right: 40px; }
+    .hb-axis { right: 40px; }
+    .plot-scroll { overflow-x: auto; margin-left: -16px; margin-right: -16px; padding: 0 16px; }
+    .plot-scroll svg { min-width: 880px; }
+  }
+</style>

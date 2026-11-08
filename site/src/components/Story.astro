@@ -1,0 +1,83 @@
+---
+const failures = [
+  {
+    n: "01",
+    title: "They can't do math on your data.",
+    body: "“Why did onboarding slow down, and by how much?” needs the incident report and a database query. Document search only finds the first half.",
+    proof: "Plain RAG: 0% on questions that need data",
+  },
+  {
+    n: "02",
+    title: "You can't tell what's made up.",
+    body: "Fluent answers mix sourced facts with confident guesses. Without receipts, every sentence needs checking, so nobody trusts any of it.",
+    proof: "Helio: every claim cites a passage or a query result",
+  },
+  {
+    n: "03",
+    title: "They're dangerous when they act.",
+    body: "Give an assistant tools, and one hidden line in a vendor PDF can tell it to open tickets, leak data, or change things nobody approved.",
+    proof: "Helio: 0 unauthorized actions under attack",
+  },
+];
+---
+<section class="section story" id="story">
+  <div class="wrap">
+    <span class="eyebrow reveal">The problem</span>
+    <h2 class="h2 reveal" style="--d:1">Company chatbots fail in three <span class="serif glow-text">predictable</span> ways.</h2>
+    <p class="lede reveal" style="--d:2">
+      Most enterprise AI assistants are a search box over documents with a language model on top.
+      I wanted to know what it takes to build one that a finance lead or an incident commander could
+      actually rely on, and to prove it with numbers instead of a demo video.
+    </p>
+
+    <div class="fails">
+      {failures.map((f, i) => (
+        <article class="card spot fail reveal" style={`--d:${i + 1}`}>
+          <span class="fail-n serif">{f.n}</span>
+          <h3 class="h3">{f.title}</h3>
+          <p>{f.body}</p>
+          <span class="fail-proof mono">{f.proof}</span>
+        </article>
+      ))}
+    </div>
+
+    <div class="goal reveal">
+      <p class="goal-q serif">The goal</p>
+      <p class="goal-a">
+        One assistant that <strong>plans</strong> like an analyst, <strong>reads</strong> the documents,
+        <strong>queries</strong> the data, <strong>shows its sources</strong>, and <strong>asks before it acts</strong>.
+        Then measure it against the simpler designs it's supposed to beat.
+      </p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .fails { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 64px; }
+  .fail { display: flex; flex-direction: column; gap: 14px; padding: 30px 28px 26px; min-height: 340px; }
+  .fail-n { font-size: 64px; line-height: 0.9; color: transparent; -webkit-text-stroke: 1px rgba(255, 255, 255, 0.28); }
+  .fail p { margin: 0; color: var(--text-2); font-size: 16px; }
+  .fail-proof {
+    margin-top: auto;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    color: var(--sun);
+    font-size: 12.5px;
+  }
+  .goal {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 32px;
+    margin-top: 96px;
+    padding-top: 40px;
+    border-top: 1px solid var(--line);
+  }
+  .goal-q { margin: 0; font-size: 34px; color: var(--muted); }
+  .goal-a { margin: 0; font-size: clamp(22px, 2.4vw, 30px); line-height: 1.4; letter-spacing: -0.02em; color: var(--text-2); }
+  .goal-a strong { color: var(--text); font-weight: 500; }
+  @media (max-width: 880px) {
+    .fails { grid-template-columns: 1fr; }
+    .fail { min-height: 0; }
+    .goal { grid-template-columns: 1fr; gap: 8px; }
+  }
+</style>

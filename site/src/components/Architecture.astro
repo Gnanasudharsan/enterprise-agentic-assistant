@@ -1,0 +1,113 @@
+---
+const tiers = [
+  {
+    name: "Edge",
+    note: "Cloud Run · one container",
+    nodes: [
+      { t: "Web app", d: "React UI served by the API itself: one origin, no CORS.", tone: "sky" },
+      { t: "Guards", d: "Access code, per-client rate limits, daily token budget.", tone: "sky" },
+    ],
+  },
+  {
+    name: "Orchestration",
+    note: "LangGraph · checkpointed",
+    nodes: [
+      { t: "Supervisor", d: "Validated JSON plan, made before retrieval.", tone: "sun" },
+      { t: "Docs agent", d: "Hybrid search, ACL-filtered in SQL, reranked.", tone: "sun" },
+      { t: "Data agent", d: "Text-to-SQL, validated, read-only role.", tone: "sun" },
+      { t: "Analyst", d: "Cites [S#] and [T#], checked and sanitized.", tone: "sun" },
+      { t: "Action agent", d: "Drafts one typed tool call, then pauses.", tone: "rose" },
+    ],
+  },
+  {
+    name: "State & tools",
+    note: "Cloud SQL · MCP · OpenAI",
+    nodes: [
+      { t: "PostgreSQL 16", d: "pgvector, full-text, ACLs, analytics, checkpoints, audit log.", tone: "mint" },
+      { t: "Tracker (MCP)", d: "A separate process holding only its own credentials.", tone: "mint" },
+      { t: "Models", d: "gpt-4.1-mini answers; text-embedding-3-small embeds.", tone: "mint" },
+      { t: "Telemetry", d: "OpenTelemetry → Cloud Trace; JSON logs → Cloud Logging.", tone: "mint" },
+    ],
+  },
+];
+---
+<section class="section arch" id="architecture">
+  <div class="wrap">
+    <span class="eyebrow reveal">Architecture</span>
+    <h2 class="h2 reveal" style="--d:1">Small on purpose. <span class="serif glow-text">Strict</span> where it counts.</h2>
+    <p class="lede reveal" style="--d:2">
+      One container, one database, one model provider. No Kubernetes, no queue, no vector-database
+      vendor. Every boundary that matters for safety is enforced in code the model can't talk its way past.
+    </p>
+
+    <div class="tiers">
+      <div class="beam" aria-hidden="true"><span></span></div>
+      {tiers.map((tier, ti) => (
+        <div class="tier reveal" style={`--d:${ti}`}>
+          <div class="tier-head">
+            <span class="mono tier-i">0{ti + 1}</span>
+            <span class="tier-name">{tier.name}</span>
+            <span class="tier-note mono">{tier.note}</span>
+          </div>
+          <div class="nodes" style={`--n:${tier.nodes.length}`}>
+            {tier.nodes.map((n) => (
+              <div class={`node card spot tone-${n.tone}`}>
+                <span class="dot"></span>
+                <b>{n.t}</b>
+                <span>{n.d}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div class="boundaries reveal">
+      <div><b>Plan before read</b><span>Retrieved text can't add steps or actions.</span></div>
+      <div><b>Permissions in SQL</b><span>Restricted passages never leave the database.</span></div>
+      <div><b>Read-only by role</b><span>SQL is validated, then run with no write privileges.</span></div>
+      <div><b>Human in the loop</b><span>Writes pause the graph until a person approves.</span></div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .tiers { position: relative; display: grid; gap: 18px; margin-top: 72px; }
+  .beam { position: absolute; left: 50%; top: 0; bottom: 0; width: 3px; transform: translateX(-50%); z-index: -1; overflow: hidden; background: linear-gradient(var(--line), var(--line)) center / 1px 100% no-repeat; }
+  .beam span {
+    position: absolute;
+    left: 0;
+    width: 3px;
+    height: 120px;
+    border-radius: 3px;
+    background: linear-gradient(transparent, var(--sun), transparent);
+    animation: travel 4.5s var(--ease-in-out) infinite;
+  }
+  @keyframes travel { from { top: -120px; } to { top: 100%; } }
+  .tier { padding: 22px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: rgba(10, 11, 15, 0.82); backdrop-filter: blur(8px); }
+  .tier-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+  .tier-i { color: var(--muted); font-size: 12px; }
+  .tier-name { font-size: 19px; font-weight: 600; letter-spacing: -0.02em; }
+  .tier-note { margin-left: auto; color: var(--muted); font-size: 12px; }
+  .nodes { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 12px; }
+  .node { display: grid; gap: 6px; align-content: start; padding: 18px 18px 20px; border-radius: 16px; }
+  .node b { font-weight: 600; letter-spacing: -0.015em; }
+  .node > span:last-child { color: var(--muted); font-size: 14px; line-height: 1.45; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 14px var(--c); }
+  .tone-sky { --c: var(--sky); }
+  .tone-sun { --c: var(--sun); }
+  .tone-rose { --c: var(--rose); }
+  .tone-mint { --c: var(--mint); }
+  .boundaries { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin-top: 40px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--line); overflow: hidden; }
+  .boundaries div { display: grid; gap: 4px; padding: 20px 22px; background: var(--bg); }
+  .boundaries b { font-weight: 500; }
+  .boundaries span { color: var(--muted); font-size: 14px; }
+  @media (max-width: 960px) {
+    .nodes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .boundaries { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tier-note { display: none; }
+  }
+  @media (max-width: 520px) {
+    .nodes, .boundaries { grid-template-columns: 1fr; }
+  }
+</style>

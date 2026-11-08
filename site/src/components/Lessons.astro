@@ -1,0 +1,61 @@
+---
+const lessons = [
+  {
+    t: "The first run is the real number.",
+    b: "The held-out benchmark scored 78%. Its failures led to fixes and 91%, and both numbers are published. Tuning on a test and reporting only the final score is how AI results get inflated.",
+    k: "78% → 91%, both disclosed",
+  },
+  {
+    t: "Most of the gain is orchestration, not retrieval.",
+    b: "Better search (hybrid + rerank) added 3 points over plain vector RAG. Letting agents query data added 35. The bottleneck wasn't finding documents; it was questions documents can't answer.",
+    k: "+3 points vs. +35 points",
+  },
+  {
+    t: "A result worse than the baseline is a bug report.",
+    b: "Two cross-encoders scored below no reranking at all. The cause: rerankers saw passage text without its heading, where identifiers like INC-198 live. Fixing it helped every reranker.",
+    k: "Cross-encoder recall 92% → 100%",
+  },
+  {
+    t: "Repeat anything that flips.",
+    b: "One task invented a sales target in 2 of 5 runs. Another invented a churn metric in 5 of 5. A single run would have hidden both. After targeted fixes, both held 10 of 10.",
+    k: "0/5 → 10/10",
+  },
+  {
+    t: "Production finds what tests don't.",
+    b: "The first Cloud Run start crashed: a connection-pool minimum exceeded the small pool size used in the cloud. Local tests used the default. CI now starts the image with production settings.",
+    k: "Caught at deploy, locked in CI",
+  },
+  {
+    t: "Put the boundary before the model.",
+    b: "Planning happens before retrieval, so no document can add an action. Permissions are applied in SQL, so no prompt can widen them. The safest instruction is one the model never has the chance to disobey.",
+    k: "0 actions nobody asked for",
+  },
+];
+---
+<section class="section lessons" id="lessons">
+  <div class="wrap">
+    <span class="eyebrow reveal">Lessons</span>
+    <h2 class="h2 reveal" style="--d:1">What building it <span class="serif glow-text">taught</span> me.</h2>
+
+    <div class="lessons-grid">
+      {lessons.map((l, i) => (
+        <article class="lesson reveal" style={`--d:${i % 3}`}>
+          <span class="lesson-n serif">{["i", "ii", "iii", "iv", "v", "vi"][i]}.</span>
+          <h3 class="h3">{l.t}</h3>
+          <p>{l.b}</p>
+          <span class="lesson-k mono">{l.k}</span>
+        </article>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .lessons-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 56px 40px; margin-top: 72px; }
+  .lesson { display: flex; flex-direction: column; gap: 12px; padding-top: 22px; border-top: 1px solid var(--line-2); }
+  .lesson-n { font-size: 30px; line-height: 1; color: var(--sun); }
+  .lesson p { margin: 0; color: var(--text-2); font-size: 16px; }
+  .lesson-k { margin-top: 6px; color: var(--muted); font-size: 12.5px; }
+  @media (max-width: 960px) { .lessons-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 640px) { .lessons-grid { grid-template-columns: 1fr; gap: 40px; } }
+</style>

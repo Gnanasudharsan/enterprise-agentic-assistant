@@ -1,0 +1,71 @@
+---
+import "../styles/global.css";
+import Nav from "../components/Nav.astro";
+import Hero from "../components/Hero.astro";
+import Story from "../components/Story.astro";
+import Walkthrough from "../components/Walkthrough.astro";
+import Product from "../components/Product.astro";
+import Architecture from "../components/Architecture.astro";
+import Decisions from "../components/Decisions.astro";
+import Journey from "../components/Journey.astro";
+import Results from "../components/Results.astro";
+import Security from "../components/Security.astro";
+import Lessons from "../components/Lessons.astro";
+import Closing from "../components/Closing.astro";
+import { author } from "../data/facts";
+
+const title = "Helio · An AI research assistant that shows its work";
+const ogImage = new URL("/og.png", Astro.site).href;
+const description =
+  "A case study: a multi-agent assistant that answers from company documents and data, cites every claim, and never acts without approval. 91% task success vs. 56% for plain RAG.";
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="author" content={author} />
+    <meta name="theme-color" content="#07080b" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:url" content={Astro.site} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap"
+    />
+  </head>
+  <body>
+    <a class="skip" href="#story">Skip to the story</a>
+    <Nav />
+    <main>
+      <Hero />
+      <Story />
+      <Walkthrough />
+      <Product />
+      <Architecture />
+      <Decisions />
+      <Journey />
+      <Results />
+      <Security />
+      <Lessons />
+    </main>
+    <Closing />
+    <script>
+      import "../scripts/main.ts";
+    </script>
+    <style is:global>
+      .skip { position: absolute; left: -9999px; top: 12px; z-index: 200; padding: 10px 14px; border-radius: 10px; background: var(--text); color: #0b0b0d; }
+      .skip:focus { left: 12px; }
+    </style>
+  </body>
+</html>

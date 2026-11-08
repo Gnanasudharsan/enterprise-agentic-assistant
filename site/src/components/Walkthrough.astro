@@ -1,0 +1,286 @@
+---
+const steps = [
+  {
+    k: "You ask",
+    t: "A question no search box can answer.",
+    b: "It needs a target that lives in a procedure document and medians that live in a database, and the two have to be compared.",
+  },
+  {
+    k: "The supervisor plans",
+    t: "A plan, validated before anything is read.",
+    b: "The planner writes a JSON plan that's checked against a schema and repaired once if it's invalid. Planning happens before retrieval, so text inside a document can never add a step or an action.",
+  },
+  {
+    k: "Specialists work in parallel",
+    t: "One agent reads. Another runs SQL.",
+    b: "The docs agent runs a hybrid search, filtered by the reader's permissions inside the database. The data agent writes SQL that's validated, then run as a read-only role in a read-only transaction. A dependent step waits for the findings it needs.",
+  },
+  {
+    k: "The analyst answers",
+    t: "Every claim comes with a receipt.",
+    b: "[S#] points to a passage and [T#] to a query result. Citations are checked after generation, links and images are stripped, and figures without a source get flagged as unverified.",
+  },
+  {
+    k: "You stay in control",
+    t: "It drafts. You decide.",
+    b: "Asked to file a follow-up, Helio drafts the ticket and the run pauses. The backend re-checks your permission and the exact arguments, executes once, and writes everything to an audit log.",
+  },
+];
+---
+<section class="section walk" id="walkthrough">
+  <div class="wrap">
+    <span class="eyebrow reveal">How it works</span>
+    <h2 class="h2 reveal" style="--d:1">One question, <span class="serif glow-text">five</span> moves.</h2>
+    <p class="lede reveal" style="--d:2">A real question from the benchmark, traced from the moment you ask it to the moment you approve what it proposes.</p>
+
+    <div class="walk-grid" data-walk data-active="0">
+      <ol class="walk-steps">
+        {steps.map((s, i) => (
+          <li class="walk-step" data-step={i}>
+            <span class="walk-k mono"><b>{String(i + 1).padStart(2, "0")}</b> {s.k}</span>
+            <h3 class="walk-t">{s.t}</h3>
+            <p>{s.b}</p>
+          </li>
+        ))}
+      </ol>
+
+      <div class="walk-stage">
+        <div class="window">
+          <div class="win-bar">
+            <i></i><i></i><i></i>
+            <span class="mono">helio · agent run</span>
+          </div>
+          <div class="win-body">
+            <!-- 0: question -->
+            <div class="layer l0">
+              <div class="bubble">Did we meet the 3-day onboarding target for Standard plans in August, September, and October? Use the median.</div>
+              <div class="typing"><span></span><span></span><span></span></div>
+            </div>
+
+            <!-- 1: plan -->
+            <div class="layer l1">
+              <div class="label mono">supervisor → plan.json</div>
+<pre class="code"><code><span class="c-k">"steps"</span>: [
+  {"{"} <span class="c-k">"id"</span>: <span class="c-s">"s1"</span>, <span class="c-k">"agent"</span>: <span class="c-s">"research"</span>,
+    <span class="c-k">"goal"</span>: <span class="c-s">"Find the onboarding target"</span> {"}"},
+  {"{"} <span class="c-k">"id"</span>: <span class="c-s">"s2"</span>, <span class="c-k">"agent"</span>: <span class="c-s">"data"</span>,
+    <span class="c-k">"goal"</span>: <span class="c-s">"Median days by signing month"</span>,
+    <span class="c-k">"depends_on"</span>: [<span class="c-s">"s1"</span>] {"}"}
+]</code></pre>
+              <div class="checks">
+                <span class="ok">✓ schema valid</span><span class="ok">✓ ≤ 4 steps</span><span class="ok">✓ no actions requested</span>
+              </div>
+            </div>
+
+            <!-- 2: research + SQL -->
+            <div class="layer l2">
+              <div class="lanes">
+                <div class="lane">
+                  <div class="label mono">docs agent · hybrid search</div>
+                  <div class="passage"><span class="pill">S1</span><b>CS-004</b> › Purpose and target<p>…complete onboarding within <mark>3 business days</mark> for Standard plans…</p></div>
+                  <div class="passage dim"><span class="pill">S2</span><b>CS-004</b> › What changed in 2.0</div>
+                </div>
+                <div class="lane">
+                  <div class="label mono">data agent · read-only SQL</div>
+<pre class="code sm"><code><span class="c-k">SELECT</span> to_char(contract_signed_on,<span class="c-s">'YYYY-MM'</span>) m,
+  percentile_cont(<span class="c-n">0.5</span>) <span class="c-k">WITHIN GROUP</span> (…)
+<span class="c-k">FROM</span> analytics.customers
+<span class="c-k">WHERE</span> plan = <span class="c-s">'Standard'</span> … <span class="c-k">LIMIT</span> <span class="c-n">200</span></code></pre>
+                  <table class="rows"><tbody>
+                    <tr><td>2026-08</td><td>2.4</td></tr>
+                    <tr><td>2026-09</td><td class="hot">4.9</td></tr>
+                    <tr><td>2026-10</td><td>3.3</td></tr>
+                  </tbody></table>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3: answer -->
+            <div class="layer l3">
+              <p class="ans">Only in <b>August</b>. The target is 3 business days <span class="pill">S1</span>. Medians were <b>2.4</b> in August, <b>4.9</b> in September, and <b>3.3</b> in October <span class="pill t">T1</span>.</p>
+              <div class="bars" role="img" aria-label="Median onboarding days: August 2.4, September 4.9, October 3.3; target 3">
+                <div class="target"><span class="mono">target 3.0</span></div>
+                <div class="bar" style="--h:49%"><span class="mono">2.4</span><i>Aug</i></div>
+                <div class="bar hot" style="--h:100%"><span class="mono">4.9</span><i>Sep</i></div>
+                <div class="bar" style="--h:67%"><span class="mono">3.3</span><i>Oct</i></div>
+              </div>
+              <div class="checks"><span class="ok">✓ 2 citations verified</span><span class="ok">✓ 0 invalid markers</span><span class="ok">✓ 4 model calls · 6,075 tokens</span></div>
+            </div>
+
+            <!-- 4: approval -->
+            <div class="layer l4">
+              <div class="approval">
+                <div class="ap-head"><span class="ap-icon"></span><div><div class="label mono">create_issue · tracker</div><b>Add an alert on the verification timeout rate</b></div><span class="ap-status">Needs your approval</span></div>
+                <div class="ap-tags"><span class="tag">P2</span><span class="tag">incident-follow-up</span></div>
+                <p class="ap-note">Nothing is created until you approve. Permission and arguments are re-checked before it runs.</p>
+                <div class="ap-btns"><span class="ghost">Reject</span><span class="ghost">Edit</span><span class="go">Approve &amp; create</span></div>
+              </div>
+              <div class="audit mono"><span>proposed</span><span>approved</span><span>executing</span><span class="done">executed</span></div>
+            </div>
+          </div>
+          <div class="win-steps" aria-hidden="true">
+            {steps.map((_, i) => <span data-dot={i}></span>)}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .walk-grid { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 64px; margin-top: 72px; }
+  .walk-steps { margin: 0; padding: 0; list-style: none; }
+  .walk-step {
+    min-height: 62vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    opacity: 0.28;
+    transition: opacity 0.6s var(--ease);
+  }
+  .walk-step.on { opacity: 1; }
+  .walk-step:first-child { min-height: 46vh; justify-content: flex-start; padding-top: 12vh; }
+  .walk-k { color: var(--muted); font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.12em; }
+  .walk-k b { color: var(--sun); font-weight: 500; margin-right: 6px; }
+  .walk-t { margin: 14px 0 0; font-size: clamp(26px, 2.6vw, 34px); font-weight: 600; letter-spacing: -0.03em; line-height: 1.15; }
+  .walk-step p { margin: 16px 0 0; max-width: 460px; color: var(--text-2); }
+
+  .walk-stage { position: relative; }
+  .window {
+    position: sticky;
+    top: calc(50vh - 250px);
+    height: 500px;
+    border: 1px solid var(--line-2);
+    border-radius: 22px;
+    background: linear-gradient(180deg, #101218, #0a0b0f);
+    box-shadow: 0 60px 120px -40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.02) inset, 0 -30px 120px -60px rgba(255, 140, 70, 0.35);
+    overflow: hidden;
+  }
+  .win-bar { display: flex; align-items: center; gap: 7px; height: 42px; padding: 0 16px; border-bottom: 1px solid var(--line); }
+  .win-bar i { width: 10px; height: 10px; border-radius: 50%; background: #2a2c33; }
+  .win-bar span { margin-left: 10px; color: var(--muted); font-size: 12px; }
+  .win-body { position: relative; height: calc(100% - 42px - 34px); }
+  .layer {
+    position: absolute;
+    inset: 0;
+    padding: 26px 26px 10px;
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+    filter: blur(4px);
+    transition: opacity 0.6s var(--ease), transform 0.8s var(--ease), filter 0.6s var(--ease);
+    pointer-events: none;
+  }
+  [data-active="0"] .l0, [data-active="1"] .l1, [data-active="2"] .l2, [data-active="3"] .l3, [data-active="4"] .l4 {
+    opacity: 1; transform: none; filter: none;
+  }
+  .win-steps { position: absolute; left: 0; right: 0; bottom: 14px; display: flex; justify-content: center; gap: 6px; }
+  .win-steps span { width: 6px; height: 6px; border-radius: 99px; background: rgba(255, 255, 255, 0.18); transition: width 0.5s var(--ease), background 0.5s; }
+  [data-active="0"] [data-dot="0"], [data-active="1"] [data-dot="1"], [data-active="2"] [data-dot="2"], [data-active="3"] [data-dot="3"], [data-active="4"] [data-dot="4"] { width: 22px; background: var(--sun); }
+
+  .label { color: var(--muted); font-size: 11.5px; margin-bottom: 10px; }
+  .bubble {
+    margin-left: auto;
+    max-width: 88%;
+    padding: 16px 20px;
+    border-radius: 22px 22px 6px 22px;
+    background: #1d1f26;
+    font-size: 17px;
+    line-height: 1.5;
+  }
+  .typing { display: flex; gap: 5px; margin-top: 26px; }
+  .typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: blink 1.2s infinite; }
+  .typing span:nth-child(2) { animation-delay: 0.15s; }
+  .typing span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes blink { 50% { opacity: 0.25; transform: translateY(-2px); } }
+
+  .code {
+    margin: 0;
+    padding: 16px 18px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: #0b0c10;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.65;
+    color: #d6d3cc;
+    white-space: pre;
+    overflow: hidden;
+  }
+  .code.sm { font-size: 11.5px; padding: 12px 14px; }
+  .c-k { color: var(--sky); }
+  .c-s { color: #ffc98a; }
+  .c-n { color: var(--mint); }
+  .checks { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .ok { padding: 4px 10px; border-radius: 99px; background: rgba(94, 234, 212, 0.08); color: var(--mint); font-family: var(--font-mono); font-size: 11.5px; }
+
+  .lanes { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .passage { padding: 12px 14px; border-radius: 12px; background: #15171e; font-size: 13px; }
+  .passage + .passage { margin-top: 8px; }
+  .passage.dim { opacity: 0.5; }
+  .passage p { margin: 6px 0 0; color: var(--text-2); }
+  .passage mark { background: rgba(255, 181, 71, 0.18); color: var(--sun); border-radius: 4px; padding: 0 3px; }
+  .pill {
+    display: inline-grid;
+    place-items: center;
+    min-width: 22px;
+    height: 18px;
+    margin-right: 6px;
+    padding: 0 5px;
+    border-radius: 99px;
+    background: rgba(124, 196, 255, 0.14);
+    color: var(--sky);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    vertical-align: 2px;
+  }
+  .pill.t { background: rgba(255, 181, 71, 0.15); color: var(--sun); }
+  .rows { width: 100%; margin-top: 10px; border-collapse: collapse; font-family: var(--font-mono); font-size: 12.5px; }
+  .rows td { padding: 6px 10px; border-bottom: 1px solid var(--line); }
+  .rows td:last-child { text-align: right; }
+  .rows .hot { color: var(--sun); }
+
+  .ans { margin: 0; font-size: 18px; line-height: 1.6; }
+  .bars { position: relative; display: flex; align-items: flex-end; gap: 22%; height: 170px; margin: 28px 8% 0; padding-bottom: 22px; border-bottom: 1px solid var(--line-2); }
+  .bar { position: relative; flex: 1; height: var(--h); border-radius: 6px 6px 0 0; background: var(--s-2); transform-origin: bottom; transform: scaleY(0); transition: transform 1s var(--ease) 0.2s; }
+  [data-active="3"] .bar { transform: none; }
+  .bar.hot { background: var(--s-3); }
+  .bar span { position: absolute; top: -22px; left: 0; right: 0; text-align: center; font-size: 12px; color: var(--text); }
+  .bar i { position: absolute; bottom: -24px; left: 0; right: 0; text-align: center; color: var(--muted); font-style: normal; font-size: 12px; }
+  .target { position: absolute; left: -4%; right: -4%; bottom: calc(22px + 61%); border-top: 1px dashed rgba(255, 255, 255, 0.35); }
+  .target span { position: absolute; left: 0; top: -20px; color: var(--muted); font-size: 11px; }
+
+  .approval { border: 1px solid rgba(255, 181, 71, 0.35); border-radius: 16px; background: #111318; box-shadow: 0 0 0 4px rgba(255, 181, 71, 0.08); overflow: hidden; }
+  .ap-head { display: flex; gap: 12px; align-items: flex-start; padding: 16px; }
+  .ap-head b { font-size: 15.5px; font-weight: 600; letter-spacing: -0.01em; }
+  .ap-head .label { margin-bottom: 3px; }
+  .ap-icon { flex: none; width: 30px; height: 30px; border-radius: 9px; background: var(--corona); }
+  .ap-status { margin-left: auto; flex: none; padding: 3px 9px; border-radius: 99px; background: rgba(255, 181, 71, 0.14); color: var(--sun); font-size: 11.5px; }
+  .ap-tags { display: flex; gap: 6px; padding: 0 16px 0 58px; }
+  .ap-note { margin: 12px 16px 0 58px; color: var(--muted); font-size: 12.5px; }
+  .ap-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; padding: 12px 16px; border-top: 1px solid var(--line); background: #0d0f13; font-size: 13px; }
+  .ap-btns span { padding: 7px 14px; border-radius: 99px; }
+  .ghost { color: var(--text-2); }
+  .go { background: var(--text); color: #0b0b0d; font-weight: 500; }
+  .audit { display: flex; gap: 6px; margin-top: 18px; font-size: 11.5px; }
+  .audit span { flex: 1; padding: 8px 6px; border-radius: 10px; background: #14161c; color: var(--muted); text-align: center; opacity: 0; transform: translateY(6px); transition: opacity 0.5s, transform 0.6s var(--ease); }
+  [data-active="4"] .audit span { opacity: 1; transform: none; }
+  [data-active="4"] .audit span:nth-child(2) { transition-delay: 0.35s; }
+  [data-active="4"] .audit span:nth-child(3) { transition-delay: 0.7s; }
+  [data-active="4"] .audit span:nth-child(4) { transition-delay: 1.05s; }
+  .audit .done { color: var(--mint); background: rgba(94, 234, 212, 0.08); }
+
+  @media (max-width: 960px) {
+    .walk-grid { grid-template-columns: 1fr; gap: 0; }
+    .walk-stage { order: -1; position: sticky; top: 72px; z-index: 2; }
+    .window { position: relative; top: 0; height: 380px; }
+    .walk-stage::after { content: ""; position: absolute; left: -16px; right: -16px; top: 100%; height: 36px; background: linear-gradient(var(--bg), transparent); pointer-events: none; }
+    .walk-stage::before { content: ""; position: absolute; left: -16px; right: -16px; top: -16px; bottom: 0; background: var(--bg); z-index: -1; }
+    .walk-step { min-height: 70vh; justify-content: flex-start; padding-top: 36px; }
+    .walk-step:first-child { min-height: 60vh; padding-top: 36px; }
+    .lanes { grid-template-columns: 1fr; }
+    .lane:first-child .passage.dim { display: none; }
+    .code.sm { display: none; }
+    .bars { height: 120px; }
+  }
+</style>

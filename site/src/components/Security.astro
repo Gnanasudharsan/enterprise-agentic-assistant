@@ -1,0 +1,106 @@
+---
+import { security as s, links } from "../data/facts";
+const layers = [
+  { t: "Architecture", d: "Plan before reading. Permissions in SQL. Read-only role. Approval as a graph interrupt. These hold even if the model is fully fooled." },
+  { t: "Output sanitizing", d: "Images removed and links reduced to text, so a hijacked answer can't send your data to someone else's server. The UI also blocks remote images." },
+  { t: "Input hygiene", d: "Paragraphs that address an AI are redacted from passages, and delimiter tags are escaped so a document can't close its own quote." },
+  { t: "Prompting", d: "Evidence is marked as data and followed by a reminder. Useful, but never the only layer." },
+];
+---
+<section class="section security" id="security">
+  <div class="wrap sec-grid">
+    <div class="sec-copy">
+      <span class="eyebrow reveal">Security</span>
+      <h2 class="h2 reveal" style="--d:1">Assume the model <span class="serif glow-text">will</span> be fooled.</h2>
+      <p class="lede reveal" style="--d:2">
+        In the first attack run, a vendor notice planted in the knowledge base told the model to end
+        every answer with a secret code. It obeyed twice. The phishing link it was also told to add
+        had already been stripped by code. That's the whole philosophy: prompts are suggestions,
+        code is a guarantee.
+      </p>
+
+      <dl class="sec-stats reveal" style="--d:3">
+        <div><dt><span data-count={s.defended}>{s.defended}</span>/{s.attacks}</dt><dd>injection attacks defended<br /><span class="muted">first run: {s.defendedFirst}/{s.attacks}</span></dd></div>
+        <div><dt><span data-count={s.blocked}>{s.blocked}</span>/{s.scenarios}</dt><dd>live attempts to bypass approval, blocked</dd></div>
+        <div><dt>0</dt><dd>unauthorized executions across these and {s.unitScenarios} unit scenarios</dd></div>
+      </dl>
+      <a class="sec-link reveal" href={links.security} target="_blank" rel="noopener">Read the security report →</a>
+    </div>
+
+    <div class="rings reveal" style="--d:2" aria-label="Four layers of defense, from the outermost to the innermost">
+      {layers.map((l, i) => (
+        <div class={`ring r${i}`} tabindex="0">
+          <span class="ring-t">{l.t}</span>
+          <span class="ring-d">{l.d}</span>
+        </div>
+      ))}
+      <div class="core"><span class="mono">model</span></div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .sec-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 72px; align-items: center; }
+  .sec-stats { display: grid; gap: 0; margin: 40px 0 0; border-top: 1px solid var(--line); }
+  .sec-stats div { display: grid; grid-template-columns: 120px 1fr; gap: 16px; align-items: baseline; padding: 18px 0; border-bottom: 1px solid var(--line); }
+  .sec-stats dt { font-size: 38px; font-weight: 600; letter-spacing: -0.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .sec-stats dd { margin: 0; color: var(--text-2); font-size: 15.5px; }
+  .sec-link { display: inline-block; margin-top: 24px; color: var(--sun); font-size: 15px; }
+
+  .rings { position: relative; width: 100%; max-width: 520px; aspect-ratio: 1; margin: 0 auto; }
+  .ring {
+    position: absolute;
+    border: 1px solid var(--line-2);
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 3.2%;
+    text-align: center;
+    transition: border-color 0.4s, background 0.4s;
+    outline: none;
+  }
+  .r0 { inset: 0; background: radial-gradient(circle, transparent 60%, rgba(255, 138, 61, 0.05)); }
+  .r1 { inset: 12%; }
+  .r2 { inset: 24%; }
+  .r3 { inset: 36%; }
+  .ring-t { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-2); }
+  .ring-d {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: min(240px, 46vw);
+    transform: translate(-50%, -50%) scale(0.96);
+    padding: 14px 16px;
+    border: 1px solid var(--line-2);
+    border-radius: 14px;
+    background: rgba(14, 16, 22, 0.94);
+    color: var(--text-2);
+    font-size: 13.5px;
+    line-height: 1.5;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s, transform 0.4s var(--ease);
+    z-index: 3;
+  }
+  .ring:hover, .ring:focus-visible { border-color: rgba(255, 181, 71, 0.6); background-color: rgba(255, 181, 71, 0.04); }
+  .ring:hover > .ring-d, .ring:focus-visible > .ring-d { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  .ring:hover .ring-t { color: var(--sun); }
+  .core {
+    position: absolute;
+    inset: 46%;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, #2a1d14, #0b0b0d 70%);
+    box-shadow: 0 0 60px rgba(255, 138, 61, 0.45), inset 0 0 0 1px rgba(255, 181, 71, 0.4);
+    color: var(--sun);
+    font-size: 11px;
+    animation: breathe 4s ease-in-out infinite;
+  }
+  @keyframes breathe { 50% { box-shadow: 0 0 90px rgba(255, 138, 61, 0.65), inset 0 0 0 1px rgba(255, 181, 71, 0.6); } }
+  @media (max-width: 960px) {
+    .sec-grid { grid-template-columns: 1fr; gap: 56px; }
+    .sec-stats div { grid-template-columns: 96px 1fr; }
+  }
+</style>
