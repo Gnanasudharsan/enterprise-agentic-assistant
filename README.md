@@ -64,7 +64,7 @@ This assistant handles the whole workflow:
 
 ## Live demo
 
-**Case study:** [helio-case-study.vercel.app](https://helio-case-study.vercel.app) tells the story of how this was built: the decisions, the journey, the measured results, and the lessons (source in [`site/`](site/)).
+**Case study:** [gnanasudharsan.vercel.app](https://gnanasudharsan.vercel.app) tells the story of how this was built: the decisions, the journey, the measured results, and the lessons (source in [`site/`](site/)).
 
 **https://helio-assistant-vpgub2ic6q-uc.a.run.app** runs on Google Cloud Run with Cloud SQL. It uses a paid model, so it asks for an access code; ask the author for one. The service scales to zero when idle, so the first request after a while takes a few seconds.
 
